@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL - Admin Authentication
+// ============================================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // Hashed with bcryptjs
+  name      String
+  role      String   @default("admin") // admin, manager, viewer
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ============================================
+// CUSTOMER MODEL - Client Information
+// ============================================
+model Customer {
+  id        String   @id @default(uuid())
+  cedula    String   @unique // Colombian ID number
+  name      String
+  email     String?
+  phone     String
+  address   String?
+  city      String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  orders    Order[]
+
+  @@index([cedula])
+  @@index([name])
+  @@index([active])
+  @@map("customers")
+}
+
+// ============================================
+// PRODUCT MODEL - Product Catalog
+// ============================================
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // "simple" or "variable"
+  category  String   // e.g., "Electronics", "Clothing", etc.
+  unit      String   // e.g., "unit", "kg", "liter"
+  price     Decimal  @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  minStock  Int      @default(5) // Alert threshold
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  orderItems OrderItem[]
+
+  @@index([name])
+  @@index([category])
+  @@index([active])
+  @@map("products")
+}
+
+// ============================================
+// ORDER MODEL - Order Header
+// ============================================
+model Order {
+  id            String    @id @default(uuid())
+  orderNumber   String    @unique // e.g., "ORD-2025-0001"
+  customerId    String
+  orderDate     DateTime  @default(now())
+  
+  // Amounts
+  subtotal      Decimal   @db.Decimal(10, 2)
+  tax           Decimal   @db.Decimal(10, 2)
+  total         Decimal   @db.Decimal(10, 2)
+  
+  // Payment
+  paymentMethod String    // "cash", "transfer", "card", "credit"
+  paymentStatus String    @default("pending") // "pending", "partial", "paid"
+  paymentDate   DateTime?
+  
+  // Shipping
+  shippingStatus String   @default("preparing") // "preparing", "shipped", "delivered"
+  shippingDate   DateTime?
+  deliveryDate   DateTime?
+  
+  // Additional
+  invoiceNumber String?   @unique
+  notes         String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+
+  @@index([orderNumber])
+  @@index([customerId])
+  @@index([orderDate])
+  @@index([paymentStatus])
+  @@index([shippingStatus])
+  @@map("orders")
+}
+
+// ============================================
+// ORDER ITEM MODEL - Products in Order
+// ============================================
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  // Relationships
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
