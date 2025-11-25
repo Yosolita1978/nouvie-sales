@@ -183,3 +183,35 @@ export interface User {
     | 'Merchandising'
     | 'Etiquetas'
     | 'Otros'
+
+// ============================================
+// API RESPONSE TYPES FOR CUSTOMERS
+// ============================================
+
+// What the GET /api/customers endpoint returns for each customer
+export interface CustomerListItem {
+    id: string
+    cedula: string
+    name: string
+    email: string | null
+    phone: string
+    address: string | null
+    city: string | null
+    active: boolean
+    createdAt: Date | string
+  }
+  
+  // Full API response structure
+  export interface CustomersApiResponse {
+    success: boolean
+    data: CustomerListItem[]
+    count: number
+  }
+  
+  // Error response structure
+  export interface ApiErrorResponse {
+    success: false
+    error: string
+    message?: string
+    errors?: string[]
+  }
