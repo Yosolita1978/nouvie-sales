@@ -13,7 +13,7 @@ export default function OrdersPage() {
             Order management will go here...
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Soon you'll create orders for your 614 customers!
+            Soon you&apos;ll create orders for your 614 customers!
           </p>
         </div>
       </div>
