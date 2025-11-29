@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
@@ -34,10 +35,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-white p-8 rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold mb-6 text-center text-nouvie-blue">
-        Nouvie Sales
-      </h1>
+    <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+      <div className="flex justify-center mb-6">
+        <Image
+          src="/nouvie-logo.png"
+          alt="Nouvie"
+          width={160}
+          height={52}
+          priority
+        />
+      </div>
+      
+      <p className="text-center text-sm text-nouvie-light-blue mb-6">
+        Sales & Inventory System
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -81,14 +92,14 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary w-full"
+          className="w-full py-3 bg-gradient-to-r from-nouvie-blue to-nouvie-light-blue text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
-        Credenciales: admin@nouvie.com / admin123
+      <p className="mt-6 text-center text-xs text-gray-400">
+        admin@nouvie.com / admin123
       </p>
     </div>
   )

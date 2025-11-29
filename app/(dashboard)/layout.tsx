@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { LogoutButton } from '@/components/auth/index'
+import { Sidebar, Header } from '@/components/layout'
 
 export default async function DashboardLayout({
   children,
@@ -16,23 +16,15 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Nouvie Sales & Inventory
-          </h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              {session.user.name}
-            </span>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <Sidebar />
+      
+      <div className="md:ml-64 flex flex-col min-h-screen">
+        <Header userName={session.user.name} />
+        
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-6">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
