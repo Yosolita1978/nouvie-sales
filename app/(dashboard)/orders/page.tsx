@@ -1,21 +1,267 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { Modal } from '@/components/ui'
+import { OrderForm } from '@/components/orders'
+import { formatCOP, formatDate } from '@/lib/utils'
+import type { OrderWithDetails } from '@/types'
+
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<OrderWithDetails[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/orders')
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch orders')
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setOrders(data.data)
+      } else {
+        throw new Error('API returned error')
+      }
+    } catch (err) {
+      console.error('Error fetching orders:', err)
+      setError('Error al cargar los pedidos. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
+
+  function handleOrderCreated() {
+    setIsModalOpen(false)
+    fetchOrders()
+  }
+
+  function getPaymentStatusBadge(status: string) {
+    const badges: Record<string, string> = {
+      pending: 'badge-warning',
+      partial: 'badge-info',
+      paid: 'badge-success'
+    }
+    const labels: Record<string, string> = {
+      pending: 'Pendiente',
+      partial: 'Parcial',
+      paid: 'Pagado'
+    }
     return (
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">Orders</h2>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            + New Order
-          </button>
-        </div>
-        
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600">
-            Order management will go here...
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Soon you&apos;ll create orders for your 614 customers!
-          </p>
-        </div>
-      </div>
+      <span className={badges[status] || 'badge-info'}>
+        {labels[status] || status}
+      </span>
     )
   }
+
+  function getShippingStatusBadge(status: string) {
+    const badges: Record<string, string> = {
+      preparing: 'badge-warning',
+      shipped: 'badge-info',
+      delivered: 'badge-success'
+    }
+    const labels: Record<string, string> = {
+      preparing: 'Por Enviar',
+      shipped: 'Enviado',
+      delivered: 'Entregado'
+    }
+    return (
+      <span className={badges[status] || 'badge-info'}>
+        {labels[status] || status}
+      </span>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Pedidos</h1>
+          <p className="text-gray-600 mt-1">
+            {loading ? (
+              'Cargando...'
+            ) : (
+              `${orders.length} pedido${orders.length !== 1 ? 's' : ''}`
+            )}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => setIsModalOpen(true)}
+        >
+          + Nuevo Pedido
+        </button>
+      </div>
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <svg
+              className="h-5 w-5 text-red-600 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-red-800">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchOrders()}
+            className="mt-3 btn-outline btn-sm"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card p-4 animate-pulse">
+              <div className="flex justify-between">
+                <div className="space-y-2">
+                  <div className="h-5 w-32 bg-gray-200 rounded"></div>
+                  <div className="h-4 w-48 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-6 w-24 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Orders List */}
+      {!loading && !error && orders.length > 0 && (
+        <div className="space-y-4">
+          {orders.map((order) => (
+            <Link
+              key={order.id}
+              href={`/orders/${order.id}`}
+              className="card-clickable block p-6"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-lg text-gray-900">
+                      {order.orderNumber}
+                    </h3>
+                    {getPaymentStatusBadge(order.paymentStatus)}
+                    {getShippingStatusBadge(order.shippingStatus)}
+                  </div>
+                  <p className="text-gray-600 mt-1">
+                    {order.customer.name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {formatDate(order.orderDate)} • {order.items.length} producto{order.items.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-nouvie-blue">
+                    {formatCOP(order.total)}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    IVA: {formatCOP(order.tax)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Order Items Preview */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex flex-wrap gap-2">
+                  {order.items.slice(0, 3).map((item) => (
+                    <span
+                      key={item.id}
+                      className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
+                    >
+                      {item.quantity}× {item.product.name}
+                    </span>
+                  ))}
+                  {order.items.length > 3 && (
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      +{order.items.length - 3} más
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {order.notes && (
+                <p className="mt-3 text-sm text-gray-500 italic">
+                  Nota: {order.notes}
+                </p>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && !error && orders.length === 0 && (
+        <div className="text-center py-12">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
+          </svg>
+          <h3 className="mt-4 text-lg font-medium text-gray-900">
+            No hay pedidos
+          </h3>
+          <p className="mt-2 text-gray-500">
+            Crea tu primer pedido para comenzar
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="mt-4 btn-primary"
+          >
+            + Nuevo Pedido
+          </button>
+        </div>
+      )}
+
+      {/* Create Order Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Nuevo Pedido"
+      >
+        <OrderForm
+          onSuccess={handleOrderCreated}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
+    </div>
+  )
+}

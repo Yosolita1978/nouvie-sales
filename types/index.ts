@@ -215,3 +215,40 @@ export interface CustomerListItem {
     message?: string
     errors?: string[]
   }
+
+// ============================================
+// ORDER CREATION TYPES
+// ============================================
+
+// Item in the shopping cart (client-side)
+export interface CartItem {
+  product: Product
+  quantity: number
+  subtotal: number
+}
+
+// Request body for POST /api/orders
+export interface CreateOrderRequest {
+  customerId: string
+  items: {
+    productId: string
+    quantity: number
+    unitPrice: number
+  }[]
+  paymentMethod: 'cash' | 'nequi' | 'bank' | 'link'
+  notes?: string
+}
+
+// Response from POST /api/orders
+export interface CreateOrderResponse {
+  success: boolean
+  data: Order
+  message: string
+}
+
+// Response from GET /api/orders
+export interface OrdersApiResponse {
+  success: boolean
+  data: OrderWithDetails[]
+  count: number
+}
