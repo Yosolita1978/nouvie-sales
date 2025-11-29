@@ -1,55 +1,58 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useDebounce } from '@/lib/hooks/use-debounce'
-import { CustomerCard, CustomerGridSkeleton } from '@/components/customers'
+import { CustomerCard, CustomerGridSkeleton, CustomerForm } from '@/components/customers'
+import { Modal } from '@/components/ui/index'
 import type { CustomerListItem, CustomersApiResponse } from '@/types'
 
 export default function CustomersPage() {
-  // State
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Debounce search for API calls
   const debouncedSearch = useDebounce(search, 300)
 
-  // Fetch customers when component mounts or search changes
-  useEffect(() => {
-    async function fetchCustomers() {
-      setLoading(true)
-      setError(null)
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-      try {
-        // Build URL with search parameter if present
-        const url = debouncedSearch
-          ? `/api/customers?search=${encodeURIComponent(debouncedSearch)}`
-          : '/api/customers'
+    try {
+      const url = debouncedSearch
+        ? `/api/customers?search=${encodeURIComponent(debouncedSearch)}`
+        : '/api/customers'
 
-        const response = await fetch(url)
+      const response = await fetch(url)
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch customers')
-        }
-
-        const data: CustomersApiResponse = await response.json()
-
-        if (data.success) {
-          setCustomers(data.data)
-        } else {
-          throw new Error('API returned error')
-        }
-      } catch (err) {
-        console.error('Error fetching customers:', err)
-        setError('Error al cargar los clientes. Intenta de nuevo.')
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers')
       }
-    }
 
-    fetchCustomers()
+      const data: CustomersApiResponse = await response.json()
+
+      if (data.success) {
+        setCustomers(data.data)
+      } else {
+        throw new Error('API returned error')
+      }
+    } catch (err) {
+      console.error('Error fetching customers:', err)
+      setError('Error al cargar los clientes. Intenta de nuevo.')
+    } finally {
+      setLoading(false)
+    }
   }, [debouncedSearch])
+
+  useEffect(() => {
+    fetchCustomers()
+  }, [fetchCustomers])
+
+  function handleCustomerCreated() {
+    setIsModalOpen(false)
+    fetchCustomers()
+  }
 
   return (
     <div className="space-y-6">
@@ -69,10 +72,7 @@ export default function CustomersPage() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {
-            // TODO: Open customer form modal (Task 4)
-            alert('Formulario de nuevo cliente - próximo paso!')
-          }}
+          onClick={() => setIsModalOpen(true)}
         >
           + Nuevo Cliente
         </button>
@@ -103,7 +103,6 @@ export default function CustomersPage() {
           </svg>
         </div>
         
-        {/* Clear button */}
         {search && (
           <button
             type="button"
@@ -148,7 +147,7 @@ export default function CustomersPage() {
           </div>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => fetchCustomers()}
             className="mt-3 btn-outline btn-sm"
           >
             Reintentar
@@ -159,10 +158,8 @@ export default function CustomersPage() {
       {/* Customer Grid */}
       {!error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Loading State */}
           {loading && <CustomerGridSkeleton count={9} />}
 
-          {/* Customers */}
           {!loading &&
             customers.map((customer) => (
               <CustomerCard key={customer.id} customer={customer} />
@@ -205,6 +202,18 @@ export default function CustomersPage() {
           )}
         </div>
       )}
+
+      {/* Create Customer Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Nuevo Cliente"
+      >
+        <CustomerForm
+          onSuccess={handleCustomerCreated}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
     </div>
   )
 }
