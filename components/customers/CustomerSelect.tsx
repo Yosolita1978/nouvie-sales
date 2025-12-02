@@ -2,17 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useDebounce } from '@/lib/hooks/use-debounce'
+import { Modal } from '@/components/ui'
+import { CustomerForm } from './CustomerForm'
 import type { CustomerListItem, CustomersApiResponse } from '@/types'
 
-// Props for the CustomerSelect component
 interface CustomerSelectProps {
-  /** Called when a customer is selected */
   onSelect: (customer: CustomerListItem) => void
-  /** Currently selected customer (optional) */
   selected?: CustomerListItem | null
-  /** Placeholder text for the search input */
   placeholder?: string
-  /** Whether the component is disabled */
   disabled?: boolean
 }
 
@@ -22,24 +19,20 @@ export function CustomerSelect({
   placeholder = 'Buscar por cédula o nombre...',
   disabled = false
 }: CustomerSelectProps) {
-  // State
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Refs
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Debounce search to avoid too many API calls
   const debouncedSearch = useDebounce(search, 300)
 
-  // Fetch customers when debounced search changes
   useEffect(() => {
     async function fetchCustomers() {
-      // Don't search if less than 2 characters
       if (debouncedSearch.length < 2) {
         setCustomers([])
         return
@@ -76,7 +69,6 @@ export function CustomerSelect({
     fetchCustomers()
   }, [debouncedSearch])
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -93,7 +85,6 @@ export function CustomerSelect({
     }
   }, [])
 
-  // Handle customer selection
   function handleSelect(customer: CustomerListItem) {
     onSelect(customer)
     setIsOpen(false)
@@ -101,18 +92,44 @@ export function CustomerSelect({
     setCustomers([])
   }
 
-  // Handle "Cambiar" button click
   function handleChange() {
-    onSelect(null as unknown as CustomerListItem) // Clear selection
+    onSelect(null as unknown as CustomerListItem)
     setIsOpen(true)
     setSearch('')
-    // Focus the input after state update
     setTimeout(() => {
       inputRef.current?.focus()
     }, 0)
   }
 
-  // If a customer is selected, show their info
+  function handleOpenNewCustomerModal() {
+    setIsModalOpen(true)
+    setIsOpen(false)
+  }
+
+  async function handleCustomerCreated() {
+    setIsModalOpen(false)
+    
+    // Fetch the most recently created customer and select them
+    try {
+      const response = await fetch('/api/customers')
+      const data: CustomersApiResponse = await response.json()
+      
+      if (data.success && data.data.length > 0) {
+        // Sort by createdAt descending and get the first one
+        const sortedCustomers = [...data.data].sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime()
+          const dateB = new Date(b.createdAt).getTime()
+          return dateB - dateA
+        })
+        
+        const newestCustomer = sortedCustomers[0]
+        onSelect(newestCustomer)
+      }
+    } catch (err) {
+      console.error('Error fetching new customer:', err)
+    }
+  }
+
   if (selected) {
     return (
       <div className="card p-4">
@@ -152,123 +169,176 @@ export function CustomerSelect({
     )
   }
 
-  // Show search interface
   return (
-    <div ref={containerRef} className="relative">
-      {/* Search Input */}
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setIsOpen(true)
-          }}
-          onFocus={() => setIsOpen(true)}
-          placeholder={placeholder}
-          disabled={disabled}
-          className="input pr-10"
-          autoComplete="off"
-        />
-        
-        {/* Search icon or loading spinner */}
-        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          {loading ? (
-            <svg
-              className="animate-spin h-5 w-5 text-gray-400"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
+    <>
+      <div ref={containerRef} className="relative">
+        {/* Search Input */}
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setIsOpen(true)
+            }}
+            onFocus={() => setIsOpen(true)}
+            placeholder={placeholder}
+            disabled={disabled}
+            className="input pr-10"
+            autoComplete="off"
+          />
+          
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            {loading ? (
+              <svg
+                className="animate-spin h-5 w-5 text-gray-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="h-5 w-5 text-gray-400"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-          ) : (
-            <svg
-              className="h-5 w-5 text-gray-400"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          )}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Dropdown */}
-      {isOpen && search.length >= 2 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          {/* Error state */}
-          {error && (
-            <div className="p-4 text-center text-red-600">
-              {error}
-            </div>
-          )}
+        {/* Dropdown */}
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+            {/* Add New Customer Button - Always visible at top */}
+            <button
+              type="button"
+              onClick={handleOpenNewCustomerModal}
+              className="w-full px-4 py-3 text-left bg-nouvie-pale-blue/20 hover:bg-nouvie-pale-blue/30 border-b border-gray-200 transition-colors flex items-center gap-3"
+            >
+              <div className="w-8 h-8 bg-nouvie-blue rounded-full flex items-center justify-center flex-shrink-0">
+                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-nouvie-blue">Nuevo Cliente</p>
+                <p className="text-xs text-gray-500">Crear un cliente nuevo</p>
+              </div>
+            </button>
 
-          {/* Loading state */}
-          {loading && !error && (
-            <div className="p-4 text-center text-gray-500">
-              Buscando...
-            </div>
-          )}
+            {/* Helper text when not enough characters */}
+            {search.length > 0 && search.length < 2 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                Escribe al menos 2 caracteres para buscar
+              </div>
+            )}
 
-          {/* Empty state */}
-          {!loading && !error && customers.length === 0 && (
-            <div className="p-4 text-center text-gray-500">
-              No se encontraron clientes
-            </div>
-          )}
+            {/* Error state */}
+            {error && (
+              <div className="p-4 text-center text-red-600">
+                {error}
+              </div>
+            )}
 
-          {/* Results */}
-          {!loading && !error && customers.length > 0 && (
-            <ul className="divide-y divide-gray-100">
-              {customers.map((customer) => (
-                <li key={customer.id}>
+            {/* Loading state */}
+            {loading && !error && search.length >= 2 && (
+              <div className="p-4 text-center text-gray-500">
+                Buscando...
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && !error && search.length >= 2 && customers.length === 0 && (
+              <div className="p-4 text-center text-gray-500">
+                <p>No se encontraron clientes</p>
+                <p className="text-sm mt-1">
+                  ¿Es un cliente nuevo?{' '}
                   <button
                     type="button"
-                    onClick={() => handleSelect(customer)}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
+                    onClick={handleOpenNewCustomerModal}
+                    className="text-nouvie-blue hover:underline font-medium"
                   >
-                    <p className="font-medium text-gray-900">
-                      {customer.name}
-                    </p>
-                    <div className="flex gap-4 mt-1 text-sm text-gray-500">
-                      <span>CC: {customer.cedula}</span>
-                      {customer.city && <span>{customer.city}</span>}
-                    </div>
+                    Crear cliente
                   </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+                </p>
+              </div>
+            )}
 
-      {/* Helper text */}
-      {isOpen && search.length > 0 && search.length < 2 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500 text-sm">
-          Escribe al menos 2 caracteres para buscar
-        </div>
-      )}
-    </div>
+            {/* Results */}
+            {!loading && !error && customers.length > 0 && (
+              <ul className="divide-y divide-gray-100">
+                {customers.map((customer) => (
+                  <li key={customer.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(customer)}
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
+                    >
+                      <p className="font-medium text-gray-900">
+                        {customer.name}
+                      </p>
+                      <div className="flex gap-4 mt-1 text-sm text-gray-500">
+                        <span>CC: {customer.cedula}</span>
+                        {customer.city && <span>{customer.city}</span>}
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Cancel button */}
+            {isOpen && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false)
+                  setSearch('')
+                }}
+                className="w-full p-3 text-center text-gray-600 hover:text-gray-800 bg-gray-50 border-t border-gray-200 transition-colors text-sm"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* New Customer Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Nuevo Cliente"
+      >
+        <CustomerForm
+          onSuccess={handleCustomerCreated}
+          onCancel={() => setIsModalOpen(false)}
+        />
+      </Modal>
+    </>
   )
 }

@@ -1,285 +1,356 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useDebounce } from '@/lib/hooks/use-debounce'
-import { formatCOP } from '@/lib/utils'
-import type { Product, CartItem } from '@/types'
+import { useState, useEffect } from 'react'
+import type { Product } from '@/types'
+
+interface OrderItem {
+  productId: string
+  productName: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
 
 interface ProductPickerProps {
-  cart: CartItem[]
-  onAddToCart: (product: Product, quantity: number) => void
-  onUpdateQuantity: (productId: string, quantity: number) => void
-  onRemoveFromCart: (productId: string) => void
+  onItemsChange: (items: OrderItem[]) => void
+  items: OrderItem[]
+  disabled?: boolean
 }
 
 export function ProductPicker({
-  cart,
-  onAddToCart,
-  onUpdateQuantity,
-  onRemoveFromCart
+  onItemsChange,
+  items,
+  disabled = false
 }: ProductPickerProps) {
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [quantity, setQuantity] = useState(1)
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const debouncedSearch = useDebounce(search, 300)
-
-  // Fetch products when search changes
+  // Load all products on mount
   useEffect(() => {
     async function fetchProducts() {
-      if (debouncedSearch.length < 2) {
-        setProducts([])
-        return
-      }
-
       setLoading(true)
+      setError(null)
       try {
-        const response = await fetch(
-          `/api/products?search=${encodeURIComponent(debouncedSearch)}`
-        )
+        const response = await fetch('/api/products')
+        if (!response.ok) throw new Error('Failed to fetch products')
         const data = await response.json()
         if (data.success) {
-          setProducts(data.data)
+          setAllProducts(data.data)
+          setFilteredProducts(data.data)
+          
+          // Extract unique categories from products
+          const uniqueCategories = [...new Set(data.data.map((p: Product) => p.category))]
+            .filter(Boolean)
+            .sort() as string[]
+          setCategories(uniqueCategories)
         }
       } catch (err) {
         console.error('Error fetching products:', err)
+        setError('Error al cargar productos')
       } finally {
         setLoading(false)
       }
     }
-
     fetchProducts()
-  }, [debouncedSearch])
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function handleSelectProduct(product: Product) {
-    setSelectedProduct(product)
-    setQuantity(1)
-    setIsOpen(false)
-    setSearch('')
-    setProducts([])
-  }
+  // Filter products by category and search
+  useEffect(() => {
+    let filtered = allProducts
 
-  function handleAddToCart() {
-    if (!selectedProduct) return
-
-    // Check if already in cart
-    const existingItem = cart.find(item => item.product.id === selectedProduct.id)
-    if (existingItem) {
-      onUpdateQuantity(selectedProduct.id, existingItem.quantity + quantity)
-    } else {
-      onAddToCart(selectedProduct, quantity)
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.category === selectedCategory)
     }
 
-    setSelectedProduct(null)
-    setQuantity(1)
+    if (search.trim()) {
+      const searchLower = search.toLowerCase()
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(searchLower)
+      )
+    }
+
+    setFilteredProducts(filtered)
+  }, [allProducts, selectedCategory, search])
+
+  function getItemQuantity(productId: string): number {
+    const item = items.find(i => i.productId === productId)
+    return item?.quantity || 0
   }
 
-  function isInCart(productId: string): boolean {
-    return cart.some(item => item.product.id === productId)
+  function handleAdd(product: Product) {
+    const existingIndex = items.findIndex(i => i.productId === product.id)
+    
+    if (existingIndex >= 0) {
+      // Increment quantity
+      const updated = [...items]
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: updated[existingIndex].quantity + 1,
+        subtotal: (updated[existingIndex].quantity + 1) * updated[existingIndex].unitPrice
+      }
+      onItemsChange(updated)
+    } else {
+      // Add new item
+      const newItem: OrderItem = {
+        productId: product.id,
+        productName: product.name,
+        unit: product.unit,
+        quantity: 1,
+        unitPrice: product.price,
+        subtotal: product.price
+      }
+      onItemsChange([...items, newItem])
+    }
   }
+
+  function handleIncrement(productId: string) {
+    const product = allProducts.find(p => p.id === productId)
+    if (product) handleAdd(product)
+  }
+
+  function handleDecrement(productId: string) {
+    const existingIndex = items.findIndex(i => i.productId === productId)
+    if (existingIndex < 0) return
+
+    const currentQty = items[existingIndex].quantity
+
+    if (currentQty <= 1) {
+      // Remove item
+      onItemsChange(items.filter(i => i.productId !== productId))
+    } else {
+      // Decrement quantity
+      const updated = [...items]
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: currentQty - 1,
+        subtotal: (currentQty - 1) * updated[existingIndex].unitPrice
+      }
+      onItemsChange(updated)
+    }
+  }
+
+  function formatCOP(amount: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
+
+  function clearFilters() {
+    setSearch('')
+    setSelectedCategory('all')
+  }
+
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
+  const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0)
 
   return (
     <div className="space-y-4">
-      {/* Search and Add Product */}
-      <div ref={containerRef} className="relative">
-        {selectedProduct ? (
-          <div className="border border-nouvie-blue rounded-lg p-4 bg-nouvie-pale-blue/10">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-medium text-gray-900">{selectedProduct.name}</p>
-                <p className="text-sm text-gray-600">
-                  {formatCOP(selectedProduct.price)} / {selectedProduct.unit}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Stock disponible: {selectedProduct.stock}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedProduct(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-3">
-              <label className="text-sm text-gray-600">Cantidad:</label>
-              <input
-                type="number"
-                min="1"
-                max={selectedProduct.stock}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="input w-24 text-center"
-              />
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                className="btn-primary"
-              >
-                Agregar
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
-                setIsOpen(true)
-              }}
-              onFocus={() => setIsOpen(true)}
-              placeholder="Buscar producto por nombre..."
-              className="input"
-            />
-
-            {isOpen && search.length >= 2 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                {loading && (
-                  <div className="p-4 text-center text-gray-500">Buscando...</div>
-                )}
-
-                {!loading && products.length === 0 && (
-                  <div className="p-4 text-center text-gray-500">
-                    No se encontraron productos
-                  </div>
-                )}
-
-                {!loading && products.length > 0 && (
-                  <ul className="divide-y divide-gray-100">
-                    {products.map((product) => (
-                      <li key={product.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectProduct(product)}
-                          disabled={product.stock === 0}
-                          className={`w-full px-4 py-3 text-left transition-colors ${
-                            product.stock === 0
-                              ? 'bg-gray-50 cursor-not-allowed'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className={`font-medium ${product.stock === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
-                                {product.name}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {product.category} • {product.stock} disponibles
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium text-nouvie-blue">
-                                {formatCOP(product.price)}
-                              </p>
-                              {isInCart(product.id) && (
-                                <span className="text-xs text-nouvie-turquoise">En carrito</span>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {isOpen && search.length > 0 && search.length < 2 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-gray-500 text-sm">
-                Escribe al menos 2 caracteres para buscar
-              </div>
-            )}
-          </>
-        )}
+      {/* Search */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar productos..."
+          disabled={disabled}
+          className="input pr-10"
+        />
+        <svg
+          className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
       </div>
 
-      {/* Cart Items */}
-      {cart.length > 0 && (
-        <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
-          {cart.map((item) => (
-            <div key={item.product.id} className="p-4 flex items-center gap-4">
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{item.product.name}</p>
-                <p className="text-sm text-gray-500">
-                  {formatCOP(item.product.price)} × {item.quantity}
-                </p>
-              </div>
+      {/* Category Pills - Dynamic from products */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory('all')}
+          disabled={disabled}
+          className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            selectedCategory === 'all'
+              ? 'bg-nouvie-blue text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Todos
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setSelectedCategory(cat)}
+            disabled={disabled}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              selectedCategory === cat
+                ? 'bg-nouvie-blue text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
-                  disabled={item.quantity <= 1}
-                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
-                </button>
+      {/* Cart Summary Bar */}
+      {items.length > 0 && (
+        <div className="bg-nouvie-pale-blue/30 rounded-lg p-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🛒</span>
+            <span className="font-medium text-nouvie-blue">
+              {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
+            </span>
+          </div>
+          <span className="font-bold text-nouvie-blue">
+            {formatCOP(totalAmount)}
+          </span>
+        </div>
+      )}
 
-                <span className="w-8 text-center font-medium">{item.quantity}</span>
+      {/* Products Grid */}
+      <div className="space-y-2">
+        {loading && (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-2 text-nouvie-blue" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Cargando productos...
+          </div>
+        )}
 
-                <button
-                  type="button"
-                  onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
-                  disabled={item.quantity >= item.product.stock}
-                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-50"
-                >
-                  <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
+        {error && (
+          <div className="text-center py-8 text-red-600">
+            {error}
+          </div>
+        )}
 
-              <p className="w-28 text-right font-medium text-gray-900">
-                {formatCOP(item.subtotal)}
-              </p>
-
+        {!loading && !error && filteredProducts.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p>No se encontraron productos</p>
+            {(search || selectedCategory !== 'all') && (
               <button
                 type="button"
-                onClick={() => onRemoveFromCart(item.product.id)}
-                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                onClick={clearFilters}
+                className="mt-2 text-nouvie-blue hover:underline text-sm"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                Limpiar filtros
               </button>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {cart.length === 0 && (
-        <div className="text-center py-8 text-gray-500 border border-dashed border-gray-300 rounded-lg">
-          <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          <p className="mt-2">No hay productos en el pedido</p>
-          <p className="text-sm">Busca y agrega productos arriba</p>
-        </div>
-      )}
+        {!loading && !error && filteredProducts.map((product) => {
+          const quantity = getItemQuantity(product.id)
+          const isInCart = quantity > 0
+          const isLowStock = product.stock <= (product.minStock || 5)
+          const isOutOfStock = product.stock === 0
+
+          return (
+            <div
+              key={product.id}
+              className={`border rounded-lg p-4 transition-all ${
+                isInCart 
+                  ? 'border-nouvie-blue bg-nouvie-pale-blue/10' 
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              } ${isOutOfStock ? 'opacity-60' : ''}`}
+            >
+              <div className="flex justify-between items-start gap-4">
+                {/* Product Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-medium text-gray-900">{product.name}</h4>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {product.category}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-3 text-sm">
+                    <span className="font-semibold text-nouvie-blue">
+                      {formatCOP(product.price)}
+                    </span>
+                    <span className="text-gray-500">
+                      por {product.unit}
+                    </span>
+                    {isOutOfStock ? (
+                      <span className="text-red-600 font-medium">🔴 Agotado</span>
+                    ) : isLowStock ? (
+                      <span className="text-amber-600">⚠️ Stock: {product.stock}</span>
+                    ) : (
+                      <span className="text-gray-400">Stock: {product.stock}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quantity Controls */}
+                <div className="flex-shrink-0">
+                  {isInCart ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleDecrement(product.id)}
+                        disabled={disabled}
+                        className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xl font-bold text-gray-700 transition-colors"
+                      >
+                        −
+                      </button>
+                      <span className="w-10 text-center font-bold text-lg text-nouvie-blue">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(product.id)}
+                        disabled={disabled || isOutOfStock}
+                        className="w-10 h-10 rounded-full bg-nouvie-blue hover:bg-nouvie-blue/90 flex items-center justify-center text-xl font-bold text-white transition-colors disabled:opacity-50"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleAdd(product)}
+                      disabled={disabled || isOutOfStock}
+                      className="px-4 py-2 bg-nouvie-turquoise text-white rounded-lg font-medium hover:bg-nouvie-turquoise/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Agregar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Subtotal when in cart */}
+              {isInCart && (
+                <div className="mt-2 pt-2 border-t border-nouvie-blue/20 flex justify-between items-center text-sm">
+                  <span className="text-gray-600">
+                    {quantity} × {formatCOP(product.price)}
+                  </span>
+                  <span className="font-bold text-nouvie-blue">
+                    {formatCOP(quantity * product.price)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

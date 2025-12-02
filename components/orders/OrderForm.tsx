@@ -1,227 +1,207 @@
 'use client'
 
 import { useState } from 'react'
-import { CustomerSelect } from '@/components/customers'
+import { CustomerSelect } from '@/components/customers/CustomerSelect'
 import { ProductPicker } from './ProductPicker'
-import { formatCOP } from '@/lib/utils'
-import type { CustomerListItem, Product, CartItem, CreateOrderRequest } from '@/types'
+import type { CustomerListItem } from '@/types'
 
-const TAX_RATE = 0.19
-
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Efectivo' },
-  { value: 'nequi', label: 'Nequi' },
-  { value: 'bank', label: 'Transferencia Bancaria' },
-  { value: 'link', label: 'Link de Pago' }
-]
+interface OrderItem {
+  productId: string
+  productName: string
+  unit: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
 
 interface OrderFormProps {
-  onSuccess: (orderId: string) => void
-  onCancel: () => void
+  onSuccess?: (orderId: string) => void
+  onCancel?: () => void
 }
 
 export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
-  const [customer, setCustomer] = useState<CustomerListItem | null>(null)
-  const [cart, setCart] = useState<CartItem[]>([])
-  const [paymentMethod, setPaymentMethod] = useState('')
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
+  const [cart, setCart] = useState<OrderItem[]>([])
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0)
-  const tax = Math.round(subtotal * TAX_RATE)
-  const total = subtotal + tax
+  const iva = Math.round(subtotal * 0.19)
+  const total = subtotal + iva
 
-  function handleAddToCart(product: Product, quantity: number) {
-    setCart(prev => [
-      ...prev,
-      {
-        product,
-        quantity,
-        subtotal: product.price * quantity
-      }
-    ])
-  }
-
-  function handleUpdateQuantity(productId: string, quantity: number) {
-    if (quantity <= 0) {
-      handleRemoveFromCart(productId)
-      return
-    }
-
-    setCart(prev =>
-      prev.map(item =>
-        item.product.id === productId
-          ? { ...item, quantity, subtotal: item.product.price * quantity }
-          : item
-      )
-    )
-  }
-
-  function handleRemoveFromCart(productId: string) {
-    setCart(prev => prev.filter(item => item.product.id !== productId))
-  }
-
-  function handleCustomerSelect(selected: CustomerListItem | null) {
-    setCustomer(selected)
+  function formatCOP(amount: number): string {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-
-    if (!customer) {
+    
+    if (!selectedCustomer) {
       setError('Selecciona un cliente')
       return
     }
-
+    
     if (cart.length === 0) {
       setError('Agrega al menos un producto')
       return
     }
 
-    if (!paymentMethod) {
-      setError('Selecciona un método de pago')
-      return
-    }
-
     setLoading(true)
+    setError(null)
 
     try {
-      const orderData: CreateOrderRequest = {
-        customerId: customer.id,
-        items: cart.map(item => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-          unitPrice: item.product.price
-        })),
-        paymentMethod: paymentMethod as 'cash' | 'nequi' | 'bank' | 'link',
-        notes: notes || undefined
-      }
-
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify({
+          customerId: selectedCustomer.id,
+          items: cart.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice
+          })),
+          notes: notes.trim() || undefined
+        })
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
-        setError(data.error || 'Error al crear el pedido')
-        return
+        const data = await response.json()
+        throw new Error(data.error || 'Error al crear el pedido')
       }
 
-      onSuccess(data.data.id)
+      const data = await response.json()
+      
+      if (onSuccess) {
+        onSuccess(data.data.id)
+      }
     } catch (err) {
       console.error('Error creating order:', err)
-      setError('Error de conexión. Intenta de nuevo.')
+      setError(err instanceof Error ? err.message : 'Error al crear el pedido')
     } finally {
       setLoading(false)
     }
   }
 
+  const canSubmit = selectedCustomer && cart.length > 0 && !loading
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
       )}
 
+      {/* Customer Selection */}
       <div>
-        <label className="label">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Cliente <span className="text-red-500">*</span>
         </label>
         <CustomerSelect
-          onSelect={handleCustomerSelect}
-          selected={customer}
+          selected={selectedCustomer}
+          onSelect={setSelectedCustomer}
           disabled={loading}
         />
       </div>
 
+      {/* Product Selection */}
       <div>
-        <label className="label">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Productos <span className="text-red-500">*</span>
         </label>
         <ProductPicker
-          cart={cart}
-          onAddToCart={handleAddToCart}
-          onUpdateQuantity={handleUpdateQuantity}
-          onRemoveFromCart={handleRemoveFromCart}
+          items={cart}
+          onItemsChange={setCart}
+          disabled={loading}
         />
       </div>
 
+      {/* Order Summary */}
       {cart.length > 0 && (
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="font-medium">{formatCOP(subtotal)}</span>
+        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          <h3 className="font-semibold text-gray-900">Resumen del Pedido</h3>
+          
+          {/* Items list */}
+          <div className="space-y-2 text-sm">
+            {cart.map((item) => (
+              <div key={item.productId} className="flex justify-between">
+                <span className="text-gray-600">
+                  {item.productName} × {item.quantity}
+                </span>
+                <span className="font-medium">{formatCOP(item.subtotal)}</span>
+              </div>
+            ))}
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">IVA (19%)</span>
-            <span className="font-medium">{formatCOP(tax)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-2">
-            <span>Total</span>
-            <span className="text-nouvie-blue">{formatCOP(total)}</span>
+
+          <hr className="border-gray-200" />
+
+          {/* Totals */}
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Subtotal</span>
+              <span>{formatCOP(subtotal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">IVA (19%)</span>
+              <span>{formatCOP(iva)}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold text-nouvie-blue">
+              <span>Total</span>
+              <span>{formatCOP(total)}</span>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Notes */}
       <div>
-        <label className="label">
-          Método de Pago <span className="text-red-500">*</span>
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {PAYMENT_METHODS.map((method) => (
-            <button
-              key={method.value}
-              type="button"
-              onClick={() => setPaymentMethod(method.value)}
-              disabled={loading}
-              className={`p-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                paymentMethod === method.value
-                  ? 'border-nouvie-blue bg-nouvie-blue/5 text-nouvie-blue'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {method.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="notes" className="label">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Notas (opcional)
         </label>
         <textarea
-          id="notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
+          disabled={loading}
           rows={3}
           className="input"
           placeholder="Instrucciones especiales, dirección de entrega, etc."
-          disabled={loading}
         />
       </div>
 
+      {/* Actions */}
       <div className="flex gap-3 pt-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={loading}
-          className="flex-1 btn-outline"
-        >
-          Cancelar
-        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="btn-outline flex-1"
+          >
+            Cancelar
+          </button>
+        )}
         <button
           type="submit"
-          disabled={loading || cart.length === 0}
-          className="flex-1 btn-primary"
+          disabled={!canSubmit}
+          className="btn-primary flex-1"
         >
-          {loading ? 'Creando...' : `Crear Pedido • ${formatCOP(total)}`}
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Creando...
+            </span>
+          ) : (
+            'Crear Pedido'
+          )}
         </button>
       </div>
     </form>
