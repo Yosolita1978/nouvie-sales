@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Modal } from '@/components/ui'
-import { OrderForm } from '@/components/orders'
 import { formatCOP, formatDate } from '@/lib/utils'
 import type { OrderWithDetails } from '@/types'
 
@@ -11,7 +9,6 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -42,11 +39,6 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
-
-  function handleOrderCreated() {
-    setIsModalOpen(false)
-    fetchOrders()
-  }
 
   function getPaymentStatusBadge(status: string) {
     const badges: Record<string, string> = {
@@ -86,7 +78,6 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Pedidos</h1>
@@ -99,16 +90,11 @@ export default function OrdersPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => setIsModalOpen(true)}
-        >
+        <Link href="/orders/new" className="btn-primary text-center">
           + Nuevo Pedido
-        </button>
+        </Link>
       </div>
 
-      {/* Error State */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
@@ -137,7 +123,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Loading State */}
       {loading && (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -154,7 +139,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Orders List */}
       {!loading && !error && orders.length > 0 && (
         <div className="space-y-4">
           {orders.map((order) => (
@@ -190,7 +174,6 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {/* Order Items Preview */}
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <div className="flex flex-wrap gap-2">
                   {order.items.slice(0, 3).map((item) => (
@@ -219,7 +202,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Empty State */}
       {!loading && !error && orders.length === 0 && (
         <div className="text-center py-12">
           <svg
@@ -241,27 +223,11 @@ export default function OrdersPage() {
           <p className="mt-2 text-gray-500">
             Crea tu primer pedido para comenzar
           </p>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="mt-4 btn-primary"
-          >
+          <Link href="/orders/new" className="mt-4 btn-primary inline-block">
             + Nuevo Pedido
-          </button>
+          </Link>
         </div>
       )}
-
-      {/* Create Order Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Nuevo Pedido"
-      >
-        <OrderForm
-          onSuccess={handleOrderCreated}
-          onCancel={() => setIsModalOpen(false)}
-        />
-      </Modal>
     </div>
   )
 }

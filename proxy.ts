@@ -1,10 +1,14 @@
 import { withAuth } from 'next-auth/middleware'
 
-export default withAuth({
+const authMiddleware = withAuth({
   pages: {
     signIn: '/login'
   }
 })
+
+export function proxy(request: Parameters<typeof authMiddleware>[0], event: Parameters<typeof authMiddleware>[1]) {
+  return authMiddleware(request, event)
+}
 
 export const config = {
   matcher: [

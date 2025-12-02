@@ -16,7 +16,7 @@ const PAYMENT_METHODS = [
 ]
 
 interface OrderFormProps {
-  onSuccess: () => void
+  onSuccess: (orderId: string) => void
   onCancel: () => void
 }
 
@@ -28,7 +28,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0)
   const tax = Math.round(subtotal * TAX_RATE)
   const total = subtotal + tax
@@ -71,7 +70,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
     e.preventDefault()
     setError(null)
 
-    // Validation
     if (!customer) {
       setError('Selecciona un cliente')
       return
@@ -114,7 +112,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         return
       }
 
-      onSuccess()
+      onSuccess(data.data.id)
     } catch (err) {
       console.error('Error creating order:', err)
       setError('Error de conexión. Intenta de nuevo.')
@@ -131,7 +129,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         </div>
       )}
 
-      {/* Customer Selection */}
       <div>
         <label className="label">
           Cliente <span className="text-red-500">*</span>
@@ -143,7 +140,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         />
       </div>
 
-      {/* Product Selection */}
       <div>
         <label className="label">
           Productos <span className="text-red-500">*</span>
@@ -156,7 +152,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         />
       </div>
 
-      {/* Totals */}
       {cart.length > 0 && (
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           <div className="flex justify-between text-sm">
@@ -174,7 +169,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         </div>
       )}
 
-      {/* Payment Method */}
       <div>
         <label className="label">
           Método de Pago <span className="text-red-500">*</span>
@@ -198,7 +192,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         </div>
       </div>
 
-      {/* Notes */}
       <div>
         <label htmlFor="notes" className="label">
           Notas (opcional)
@@ -214,7 +207,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         />
       </div>
 
-      {/* Buttons */}
       <div className="flex gap-3 pt-4">
         <button
           type="button"

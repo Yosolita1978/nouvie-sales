@@ -27,7 +27,7 @@ export function Header({ userName }: HeaderProps) {
         
         {/* Desktop title */}
         <h1 className="hidden md:block text-lg md:text-xl font-semibold text-nouvie-navy">
-          Sales & Inventory
+          Herramienta de Administración de Nouvie Ventas
         </h1>
         
         <div className="relative">
