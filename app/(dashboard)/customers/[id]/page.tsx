@@ -1,55 +1,121 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { CustomerListItem } from '@/types'
+import { formatCOP, formatDate } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ui'
+
+interface CustomerOrder {
+  id: string
+  orderNumber: string
+  total: number
+  paymentStatus: string
+  shippingStatus: string
+  createdAt: string
+}
+
+interface CustomerWithOrders {
+  id: string
+  cedula: string
+  name: string
+  email: string | null
+  phone: string
+  address: string | null
+  city: string | null
+  active: boolean
+  createdAt: string
+  orders: CustomerOrder[]
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  partial: 'Parcial',
+  paid: 'Pagado'
+}
+
+const PAYMENT_STATUS_BADGES: Record<string, string> = {
+  pending: 'badge-warning',
+  partial: 'badge-info',
+  paid: 'badge-success'
+}
 
 export default function CustomerDetailPage() {
   const params = useParams()
   const router = useRouter()
   const customerId = params.id as string
 
-  const [customer, setCustomer] = useState<CustomerListItem | null>(null)
+  const [customer, setCustomer] = useState<CustomerWithOrders | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchCustomer() {
-      setLoading(true)
-      setError(null)
+  const fetchCustomer = useCallback(async () => {
+    setLoading(true)
+    setError(null)
 
-      try {
-        const response = await fetch('/api/customers')
-        
-        if (!response.ok) {
+    try {
+      const response = await fetch(`/api/customers/${customerId}`)
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError('Cliente no encontrado')
+        } else {
           throw new Error('Failed to fetch customer')
         }
-
-        const data = await response.json()
-        
-        if (data.success) {
-          const found = data.data.find((c: CustomerListItem) => c.id === customerId)
-          if (found) {
-            setCustomer(found)
-          } else {
-            setError('Cliente no encontrado')
-          }
-        } else {
-          throw new Error('API returned error')
-        }
-      } catch (err) {
-        console.error('Error fetching customer:', err)
-        setError('Error al cargar el cliente')
-      } finally {
-        setLoading(false)
+        return
       }
-    }
 
-    if (customerId) {
-      fetchCustomer()
+      const data = await response.json()
+
+      if (data.success) {
+        setCustomer(data.data)
+      } else {
+        throw new Error('API returned error')
+      }
+    } catch (err) {
+      console.error('Error fetching customer:', err)
+      setError('Error al cargar el cliente')
+    } finally {
+      setLoading(false)
     }
   }, [customerId])
+
+  useEffect(() => {
+    fetchCustomer()
+  }, [fetchCustomer])
+
+  async function handleDelete() {
+    setDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setDeleteError(data.error || 'Error al eliminar')
+        setDeleting(false)
+        return
+      }
+
+      router.push('/customers')
+    } catch (err) {
+      console.error('Error deleting customer:', err)
+      setDeleteError('Error de conexión')
+      setDeleting(false)
+    }
+  }
+
+  function handleCloseDialog() {
+    setShowDeleteDialog(false)
+    setDeleteError(null)
+  }
 
   if (loading) {
     return (
@@ -92,7 +158,23 @@ export default function CustomerDetailPage() {
   }
 
   if (!customer) {
-    return <div>Cliente no encontrado</div>
+    return (
+      <div className="text-center py-12">
+        <p>Cliente no encontrado</p>
+      </div>
+    )
+  }
+
+  const hasOrders = customer.orders.length > 0
+  const canDelete = !hasOrders && !deleteError
+
+  let deleteMessage = ''
+  if (deleteError) {
+    deleteMessage = deleteError
+  } else if (hasOrders) {
+    deleteMessage = `Este cliente tiene ${customer.orders.length} pedido${customer.orders.length !== 1 ? 's' : ''}. Debes eliminar los pedidos primero.`
+  } else {
+    deleteMessage = `¿Estás segura de que quieres eliminar a ${customer.name}? Esta acción no se puede deshacer.`
   }
 
   return (
@@ -126,10 +208,10 @@ export default function CustomerDetailPage() {
         </div>
         <button
           type="button"
-          className="btn-outline"
-          onClick={() => alert('Editar cliente - próximo paso!')}
+          onClick={() => setShowDeleteDialog(true)}
+          className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
         >
-          Editar
+          Eliminar
         </button>
       </div>
 
@@ -142,10 +224,7 @@ export default function CustomerDetailPage() {
             <dt className="text-sm font-medium text-gray-500">Email</dt>
             <dd className="mt-1 text-gray-900">
               {customer.email ? (
-                <a
-                  href={`mailto:${customer.email}`}
-                  className="text-nouvie-blue hover:underline"
-                >
+                <a href={'mailto:' + customer.email} className="text-nouvie-blue hover:underline">
                   {customer.email}
                 </a>
               ) : (
@@ -156,10 +235,7 @@ export default function CustomerDetailPage() {
           <div>
             <dt className="text-sm font-medium text-gray-500">Teléfono</dt>
             <dd className="mt-1 text-gray-900">
-              <a
-                href={`tel:${customer.phone}`}
-                className="text-nouvie-blue hover:underline"
-              >
+              <a href={'tel:' + customer.phone} className="text-nouvie-blue hover:underline">
                 {customer.phone}
               </a>
             </dd>
@@ -180,27 +256,80 @@ export default function CustomerDetailPage() {
       </div>
 
       <div className="card-padded">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Pedidos de este Cliente
-        </h2>
-        <div className="text-center py-8 text-gray-500">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
-          </svg>
-          <p className="mt-2">No hay pedidos registrados</p>
-          <p className="text-sm">Los pedidos de este cliente aparecerán aquí</p>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Pedidos de este Cliente
+          </h2>
+          {hasOrders && (
+            <span className="text-sm text-gray-500">
+              {customer.orders.length} pedido{customer.orders.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
+
+        {!hasOrders && (
+          <div className="text-center py-8 text-gray-500">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-300"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            <p className="mt-2">No hay pedidos registrados</p>
+            <Link href="/orders/new" className="mt-4 btn-primary inline-block">
+              Crear Pedido
+            </Link>
+          </div>
+        )}
+
+        {hasOrders && (
+          <div className="divide-y divide-gray-100">
+            {customer.orders.map((order) => (
+              <Link
+                key={order.id}
+                href={'/orders/' + order.id}
+                className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">
+                      {order.orderNumber}
+                    </span>
+                    <span className={PAYMENT_STATUS_BADGES[order.paymentStatus]}>
+                      {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {formatDate(order.createdAt)}
+                  </p>
+                </div>
+                <span className="font-semibold text-nouvie-blue">
+                  {formatCOP(order.total)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={handleCloseDialog}
+        onConfirm={canDelete ? handleDelete : handleCloseDialog}
+        title="Eliminar Cliente"
+        message={deleteMessage}
+        confirmLabel={canDelete ? 'Eliminar' : 'Entendido'}
+        cancelLabel={canDelete ? 'Cancelar' : 'Cerrar'}
+        variant={canDelete ? 'danger' : 'default'}
+        loading={deleting}
+      />
     </div>
   )
 }

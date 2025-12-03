@@ -250,3 +250,69 @@ export async function PATCH(
     )
   }
 }
+
+/**
+ * DELETE /api/orders/[id]
+ * 
+ * Deletes an order and its items
+ * If payment was "paid", restores stock to products
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true }
+    })
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, error: 'Pedido no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // If order was paid, restore stock
+      if (order.paymentStatus === 'paid') {
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } }
+          })
+        }
+      }
+
+      // Delete order items first
+      await tx.orderItem.deleteMany({
+        where: { orderId: id }
+      })
+
+      // Delete the order
+      await tx.order.delete({
+        where: { id }
+      })
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Pedido eliminado exitosamente'
+    })
+
+  } catch (error) {
+    console.error('Error deleting order:', error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Error al eliminar el pedido',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}

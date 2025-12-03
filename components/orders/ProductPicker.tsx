@@ -30,8 +30,8 @@ export function ProductPicker({
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [justAdded, setJustAdded] = useState<string | null>(null)
 
-  // Load all products on mount
   useEffect(() => {
     async function fetchProducts() {
       setLoading(true)
@@ -43,8 +43,7 @@ export function ProductPicker({
         if (data.success) {
           setAllProducts(data.data)
           setFilteredProducts(data.data)
-          
-          // Extract unique categories from products
+
           const uniqueCategories = [...new Set(data.data.map((p: Product) => p.category))]
             .filter(Boolean)
             .sort() as string[]
@@ -60,7 +59,6 @@ export function ProductPicker({
     fetchProducts()
   }, [])
 
-  // Filter products by category and search
   useEffect(() => {
     let filtered = allProducts
 
@@ -78,16 +76,24 @@ export function ProductPicker({
     setFilteredProducts(filtered)
   }, [allProducts, selectedCategory, search])
 
+  useEffect(() => {
+    if (justAdded) {
+      const timer = setTimeout(() => setJustAdded(null), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [justAdded])
+
   function getItemQuantity(productId: string): number {
     const item = items.find(i => i.productId === productId)
     return item?.quantity || 0
   }
 
   function handleAdd(product: Product) {
+    setJustAdded(product.id)
+
     const existingIndex = items.findIndex(i => i.productId === product.id)
-    
+
     if (existingIndex >= 0) {
-      // Increment quantity
       const updated = [...items]
       updated[existingIndex] = {
         ...updated[existingIndex],
@@ -96,7 +102,6 @@ export function ProductPicker({
       }
       onItemsChange(updated)
     } else {
-      // Add new item
       const newItem: OrderItem = {
         productId: product.id,
         productName: product.name,
@@ -121,10 +126,8 @@ export function ProductPicker({
     const currentQty = items[existingIndex].quantity
 
     if (currentQty <= 1) {
-      // Remove item
       onItemsChange(items.filter(i => i.productId !== productId))
     } else {
-      // Decrement quantity
       const updated = [...items]
       updated[existingIndex] = {
         ...updated[existingIndex],
@@ -154,7 +157,6 @@ export function ProductPicker({
 
   return (
     <div className="space-y-4">
-      {/* Search */}
       <div className="relative">
         <input
           type="text"
@@ -179,7 +181,6 @@ export function ProductPicker({
         </svg>
       </div>
 
-      {/* Category Pills - Dynamic from products */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         <button
           type="button"
@@ -210,7 +211,6 @@ export function ProductPicker({
         ))}
       </div>
 
-      {/* Cart Summary Bar */}
       {items.length > 0 && (
         <div className="bg-nouvie-pale-blue/30 rounded-lg p-3 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -225,7 +225,6 @@ export function ProductPicker({
         </div>
       )}
 
-      {/* Products Grid */}
       <div className="space-y-2">
         {loading && (
           <div className="text-center py-8 text-gray-500">
@@ -263,18 +262,30 @@ export function ProductPicker({
           const isInCart = quantity > 0
           const isLowStock = product.stock <= (product.minStock || 5)
           const isOutOfStock = product.stock === 0
+          const wasJustAdded = justAdded === product.id
 
           return (
             <div
               key={product.id}
-              className={`border rounded-lg p-4 transition-all ${
-                isInCart 
-                  ? 'border-nouvie-blue bg-nouvie-pale-blue/10' 
+              className={`relative border rounded-lg p-4 transition-all ${
+                isInCart
+                  ? 'border-nouvie-blue bg-nouvie-pale-blue/10'
                   : 'border-gray-200 bg-white hover:border-gray-300'
               } ${isOutOfStock ? 'opacity-60' : ''}`}
             >
+              {/* "Añadido ✓" Flash */}
+              {wasJustAdded && (
+                <div className="absolute inset-0 flex items-center justify-center bg-green-500/90 rounded-lg animate-fade-out z-10">
+                  <div className="flex items-center gap-2 text-white font-semibold">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Añadido
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between items-start gap-4">
-                {/* Product Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h4 className="font-medium text-gray-900">{product.name}</h4>
@@ -299,7 +310,6 @@ export function ProductPicker({
                   </div>
                 </div>
 
-                {/* Quantity Controls */}
                 <div className="flex-shrink-0">
                   {isInCart ? (
                     <div className="flex items-center gap-1">
@@ -336,7 +346,6 @@ export function ProductPicker({
                 </div>
               </div>
 
-              {/* Subtotal when in cart */}
               {isInCart && (
                 <div className="mt-2 pt-2 border-t border-nouvie-blue/20 flex justify-between items-center text-sm">
                   <span className="text-gray-600">
