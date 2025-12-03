@@ -20,7 +20,8 @@ interface OrderItem {
 interface Order {
   id: string
   orderNumber: string
-  status: string
+  paymentStatus: string
+  shippingStatus: string
   subtotal: number
   tax: number
   total: number
@@ -32,22 +33,32 @@ interface Order {
     name: string
     phone: string | null
     address: string | null
-  }
+  } | null
   items: OrderItem[]
 }
 
-const statusLabels: Record<string, string> = {
+const paymentStatusLabels: Record<string, string> = {
   pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  delivered: 'Entregado',
-  cancelled: 'Cancelado'
+  partial: 'Parcial',
+  paid: 'Pagado'
 }
 
-const statusColors: Record<string, string> = {
+const paymentStatusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800'
+  partial: 'bg-blue-100 text-blue-800',
+  paid: 'bg-green-100 text-green-800'
+}
+
+const shippingStatusLabels: Record<string, string> = {
+  preparing: 'Por Enviar',
+  shipped: 'Enviado',
+  delivered: 'Entregado'
+}
+
+const shippingStatusColors: Record<string, string> = {
+  preparing: 'bg-yellow-100 text-yellow-800',
+  shipped: 'bg-blue-100 text-blue-800',
+  delivered: 'bg-green-100 text-green-800'
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -60,6 +71,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [updating, setUpdating] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   useEffect(() => {
     async function fetchOrder() {
@@ -82,7 +94,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     fetchOrder()
   }, [id])
 
-  async function handleStatusChange(newStatus: string) {
+  async function handlePaymentStatusChange(newStatus: string) {
     if (!order || updating) return
 
     setUpdating(true)
@@ -90,7 +102,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       const response = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ paymentStatus: newStatus })
       })
 
       if (!response.ok) throw new Error('Error al actualizar')
@@ -104,6 +116,59 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       setError('Error al actualizar el estado')
     } finally {
       setUpdating(false)
+    }
+  }
+
+  async function handleShippingStatusChange(newStatus: string) {
+    if (!order || updating) return
+
+    setUpdating(true)
+    try {
+      const response = await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shippingStatus: newStatus })
+      })
+
+      if (!response.ok) throw new Error('Error al actualizar')
+
+      const data = await response.json()
+      if (data.success) {
+        setOrder(data.data)
+      }
+    } catch (err) {
+      console.error('Error updating status:', err)
+      setError('Error al actualizar el estado')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  async function handleDownloadPdf() {
+    if (!order || downloadingPdf) return
+
+    setDownloadingPdf(true)
+    try {
+      const response = await fetch(`/api/orders/${id}/pdf`)
+
+      if (!response.ok) {
+        throw new Error('Error al generar PDF')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${order.orderNumber}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error downloading PDF:', err)
+      setError('Error al descargar el PDF')
+    } finally {
+      setDownloadingPdf(false)
     }
   }
 
@@ -171,6 +236,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     )
   }
 
+  const deleteMessage = `¿Estás segura de que quieres eliminar el pedido ${order.orderNumber}? Esta acción no se puede deshacer.`
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -183,13 +250,38 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </h1>
           <p className="text-gray-500 text-sm">{formatDate(order.createdAt)}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[order.status]}`}>
-            {statusLabels[order.status]}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${paymentStatusColors[order.paymentStatus]}`}>
+            {paymentStatusLabels[order.paymentStatus]}
+          </span>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${shippingStatusColors[order.shippingStatus]}`}>
+            {shippingStatusLabels[order.shippingStatus]}
           </span>
           <button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="px-3 py-1.5 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {downloadingPdf ? (
+              <>
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Generando...
+              </>
+            ) : (
+              <>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                PDF
+              </>
+            )}
+          </button>
+          <button
             onClick={() => setShowDeleteDialog(true)}
-            className="px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
           >
             Eliminar
           </button>
@@ -199,35 +291,64 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Cliente</h2>
-          <div className="space-y-2">
-            <p className="font-medium text-nouvie-blue">{order.customer.name}</p>
-            {order.customer.phone && (
-              <p className="text-gray-600 text-sm">📞 {order.customer.phone}</p>
-            )}
-            {order.customer.address && (
-              <p className="text-gray-600 text-sm">📍 {order.customer.address}</p>
-            )}
-          </div>
+          {order.customer ? (
+            <div className="space-y-2">
+              <Link
+                href={`/customers/${order.customer.id}`}
+                className="font-medium text-nouvie-blue hover:underline"
+              >
+                {order.customer.name}
+              </Link>
+              {order.customer.phone && (
+                <p className="text-gray-600 text-sm">📞 {order.customer.phone}</p>
+              )}
+              {order.customer.address && (
+                <p className="text-gray-600 text-sm">📍 {order.customer.address}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">Cliente no disponible</p>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <h2 className="font-semibold text-gray-900 mb-3">Cambiar Estado</h2>
+          <h2 className="font-semibold text-gray-900 mb-3">Estado de Pago</h2>
           <div className="flex flex-wrap gap-2">
-            {['pending', 'confirmed', 'delivered', 'cancelled'].map((status) => (
+            {(['pending', 'partial', 'paid'] as const).map((status) => (
               <button
                 key={status}
-                onClick={() => handleStatusChange(status)}
-                disabled={updating || order.status === status}
+                onClick={() => handlePaymentStatusChange(status)}
+                disabled={updating || order.paymentStatus === status}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                  order.status === status
-                    ? statusColors[status]
+                  order.paymentStatus === status
+                    ? paymentStatusColors[status]
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {statusLabels[status]}
+                {paymentStatusLabels[status]}
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-900 mb-3">Estado de Envío</h2>
+        <div className="flex flex-wrap gap-2">
+          {(['preparing', 'shipped', 'delivered'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => handleShippingStatusChange(status)}
+              disabled={updating || order.shippingStatus === status}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                order.shippingStatus === status
+                  ? shippingStatusColors[status]
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {shippingStatusLabels[status]}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -275,7 +396,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         onClose={() => setShowDeleteDialog(false)}
         onConfirm={handleDelete}
         title="Eliminar Pedido"
-        message={`¿Estás segura de que quieres eliminar el pedido ${order.orderNumber}? Esta acción no se puede deshacer.`}
+        message={deleteMessage}
         confirmLabel="Eliminar"
         variant="danger"
         loading={deleting}
