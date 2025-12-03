@@ -1,8 +1,120 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { CreateOrderRequest } from '@/types'
 
 const TAX_RATE = 0.19 // 19% IVA
+
+/**
+ * GET /api/orders
+ * 
+ * Fetches orders with optional filtering
+ * 
+ * Query Parameters:
+ *   - search: Filter by order number or customer name
+ *   - paymentStatus: Filter by payment status (pending, partial, paid)
+ *   - shippingStatus: Filter by shipping status (preparing, shipped, delivered)
+ *   - period: Filter by time period (week = last 7 days)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const search = searchParams.get('search')
+    const paymentStatus = searchParams.get('paymentStatus')
+    const shippingStatus = searchParams.get('shippingStatus')
+    const period = searchParams.get('period')
+
+    // Build where clause dynamically
+    const whereConditions: Prisma.OrderWhereInput = {}
+
+    // Filter by payment status
+    if (paymentStatus) {
+      whereConditions.paymentStatus = paymentStatus
+    }
+
+    // Filter by shipping status
+    if (shippingStatus) {
+      whereConditions.shippingStatus = shippingStatus
+    }
+
+    // Filter by period (this week = last 7 days)
+    if (period === 'week') {
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+      whereConditions.orderDate = {
+        gte: sevenDaysAgo
+      }
+    }
+
+    // Filter by search (order number or customer name)
+    if (search) {
+      whereConditions.OR = [
+        {
+          orderNumber: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+        {
+          customer: {
+            name: {
+              contains: search,
+              mode: 'insensitive'
+            }
+          }
+        }
+      ]
+    }
+
+    const orders = await prisma.order.findMany({
+      where: whereConditions,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true
+          }
+        }
+      }
+    })
+
+    // Convert Decimals to numbers
+    const serializedOrders = orders.map(order => ({
+      ...order,
+      subtotal: Number(order.subtotal),
+      tax: Number(order.tax),
+      total: Number(order.total),
+      items: order.items.map(item => ({
+        ...item,
+        unitPrice: Number(item.unitPrice),
+        subtotal: Number(item.subtotal),
+        product: {
+          ...item.product,
+          price: Number(item.product.price)
+        }
+      }))
+    }))
+
+    return NextResponse.json({
+      success: true,
+      data: serializedOrders,
+      count: serializedOrders.length
+    })
+
+  } catch (error) {
+    console.error('Error fetching orders:', error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to fetch orders',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
 
 /**
  * POST /api/orders
@@ -173,62 +285,6 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: 'Failed to create order',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
-}
-
-/**
- * GET /api/orders
- * 
- * Fetches all orders with customer and items
- */
-export async function GET() {
-  try {
-    const orders = await prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        customer: true,
-        items: {
-          include: {
-            product: true
-          }
-        }
-      }
-    })
-
-    // Convert Decimals to numbers
-    const serializedOrders = orders.map(order => ({
-      ...order,
-      subtotal: Number(order.subtotal),
-      tax: Number(order.tax),
-      total: Number(order.total),
-      items: order.items.map(item => ({
-        ...item,
-        unitPrice: Number(item.unitPrice),
-        subtotal: Number(item.subtotal),
-        product: {
-          ...item.product,
-          price: Number(item.product.price)
-        }
-      }))
-    }))
-
-    return NextResponse.json({
-      success: true,
-      data: serializedOrders,
-      count: serializedOrders.length
-    })
-
-  } catch (error) {
-    console.error('Error fetching orders:', error)
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch orders',
         message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }

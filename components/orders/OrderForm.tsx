@@ -25,9 +25,19 @@ interface SuccessData {
   orderNumber: string
 }
 
+type PaymentMethodType = 'cash' | 'nequi' | 'bank' | 'link'
+
+const PAYMENT_METHODS: { value: PaymentMethodType; label: string; icon: string }[] = [
+  { value: 'cash', label: 'Efectivo', icon: '💵' },
+  { value: 'nequi', label: 'Nequi', icon: '📱' },
+  { value: 'bank', label: 'Banco', icon: '🏦' },
+  { value: 'link', label: 'Link', icon: '🔗' }
+]
+
 export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
   const [cart, setCart] = useState<OrderItem[]>([])
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +84,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             quantity: item.quantity,
             unitPrice: item.unitPrice
           })),
-          paymentMethod: 'cash',
+          paymentMethod,
           notes: notes.trim() || undefined
         })
       })
@@ -145,6 +155,31 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
           />
         </div>
 
+        {/* Payment Method Selector */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Método de Pago <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {PAYMENT_METHODS.map((method) => (
+              <button
+                key={method.value}
+                type="button"
+                onClick={() => setPaymentMethod(method.value)}
+                disabled={loading}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                  paymentMethod === method.value
+                    ? 'bg-nouvie-blue text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                } disabled:opacity-50`}
+              >
+                <span>{method.icon}</span>
+                <span>{method.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {cart.length > 0 && (
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <h3 className="font-semibold text-gray-900">Resumen del Pedido</h3>
@@ -175,6 +210,16 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                 <span>Total</span>
                 <span>{formatCOP(total)}</span>
               </div>
+            </div>
+
+            {/* Show selected payment method in summary */}
+            <hr className="border-gray-200" />
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600">Método de pago</span>
+              <span className="font-medium">
+                {PAYMENT_METHODS.find(m => m.value === paymentMethod)?.icon}{' '}
+                {PAYMENT_METHODS.find(m => m.value === paymentMethod)?.label}
+              </span>
             </div>
           </div>
         )}

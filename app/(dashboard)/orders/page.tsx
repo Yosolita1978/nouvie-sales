@@ -2,20 +2,53 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useDebounce } from '@/lib/hooks/use-debounce'
 import { formatCOP, formatDate } from '@/lib/utils'
 import type { OrderWithDetails } from '@/types'
+
+type FilterType = 'all' | 'pending-payment' | 'pending-shipping' | 'this-week'
+
+const FILTERS: { value: FilterType; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'pending-payment', label: 'Pendientes de Pago' },
+  { value: 'pending-shipping', label: 'Por Enviar' },
+  { value: 'this-week', label: 'Esta Semana' }
+]
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+
+  const debouncedSearch = useDebounce(search, 300)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/orders')
+      // Build query parameters
+      const params = new URLSearchParams()
+
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch)
+      }
+
+      if (activeFilter === 'pending-payment') {
+        params.set('paymentStatus', 'pending')
+      } else if (activeFilter === 'pending-shipping') {
+        params.set('shippingStatus', 'preparing')
+      } else if (activeFilter === 'this-week') {
+        params.set('period', 'week')
+      }
+
+      const url = params.toString()
+        ? `/api/orders?${params.toString()}`
+        : '/api/orders'
+
+      const response = await fetch(url)
 
       if (!response.ok) {
         throw new Error('Failed to fetch orders')
@@ -34,7 +67,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [debouncedSearch, activeFilter])
 
   useEffect(() => {
     fetchOrders()
@@ -76,6 +109,13 @@ export default function OrdersPage() {
     )
   }
 
+  function clearFilters() {
+    setSearch('')
+    setActiveFilter('all')
+  }
+
+  const hasActiveFilters = search !== '' || activeFilter !== 'all'
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -93,6 +133,72 @@ export default function OrdersPage() {
         <Link href="/orders/new" className="btn-primary text-center">
           + Nuevo Pedido
         </Link>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative max-w-md">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por número de pedido o cliente..."
+          className="input pl-10"
+        />
+        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+          <svg
+            className="h-5 w-5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+
+        {search && (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Filter Buttons */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            onClick={() => setActiveFilter(filter.value)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              activeFilter === filter.value
+                ? 'bg-nouvie-blue text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -221,11 +327,23 @@ export default function OrdersPage() {
             No hay pedidos
           </h3>
           <p className="mt-2 text-gray-500">
-            Crea tu primer pedido para comenzar
+            {hasActiveFilters
+              ? 'No hay pedidos que coincidan con los filtros'
+              : 'Crea tu primer pedido para comenzar'}
           </p>
-          <Link href="/orders/new" className="mt-4 btn-primary inline-block">
-            + Nuevo Pedido
-          </Link>
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mt-4 btn-outline"
+            >
+              Limpiar filtros
+            </button>
+          ) : (
+            <Link href="/orders/new" className="mt-4 btn-primary inline-block">
+              + Nuevo Pedido
+            </Link>
+          )}
         </div>
       )}
     </div>
