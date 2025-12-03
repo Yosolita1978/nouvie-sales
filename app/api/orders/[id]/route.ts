@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 interface UpdateOrderBody {
   paymentStatus?: 'pending' | 'partial' | 'paid'
   shippingStatus?: 'preparing' | 'shipped' | 'delivered'
+  invoiceNumber?: string | null
 }
 
 /**
@@ -76,7 +77,7 @@ export async function GET(
 /**
  * PATCH /api/orders/[id]
  * 
- * Updates order status (payment and/or shipping)
+ * Updates order status (payment and/or shipping) and invoice number
  * When paymentStatus changes to "paid", stock is deducted
  */
 export async function PATCH(
@@ -86,7 +87,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body: UpdateOrderBody = await request.json()
-    const { paymentStatus, shippingStatus } = body
+    const { paymentStatus, shippingStatus, invoiceNumber } = body
 
     // Fetch current order
     const currentOrder = await prisma.order.findUnique({
@@ -114,7 +115,13 @@ export async function PATCH(
       shippingStatus?: string
       shippingDate?: Date | null
       deliveryDate?: Date | null
+      invoiceNumber?: string | null
     } = {}
+
+    // Handle invoice number change
+    if (invoiceNumber !== undefined) {
+      updateData.invoiceNumber = invoiceNumber || null
+    }
 
     // Handle payment status change
     if (paymentStatus && paymentStatus !== currentOrder.paymentStatus) {
@@ -229,6 +236,8 @@ export async function PATCH(
       message = 'Pedido marcado como pagado. Stock descontado.'
     } else if (shouldRestoreStock) {
       message = 'Estado de pago revertido. Stock restaurado.'
+    } else if (invoiceNumber !== undefined) {
+      message = 'Número de factura actualizado'
     }
 
     return NextResponse.json({
@@ -239,6 +248,18 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error updating order:', error)
+
+    // Handle unique constraint error for invoice number
+    if (error instanceof Error && error.message.includes('Unique constraint')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Este número de factura ya existe',
+          message: 'El número de factura debe ser único'
+        },
+        { status: 400 }
+      )
+    }
 
     return NextResponse.json(
       {

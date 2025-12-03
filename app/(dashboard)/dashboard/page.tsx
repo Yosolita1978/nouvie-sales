@@ -9,6 +9,8 @@ interface DashboardStats {
   customers: number
   products: number
   orders: number
+  ordersToday: number
+  revenueToday: number
 }
 
 export default function DashboardPage() {
@@ -133,7 +135,65 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Pedidos del Día */}
+        <div className="card-padded p-4 bg-green-50 border-green-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-green-700">Pedidos del Día</p>
+              {loading ? (
+                <div className="h-7 w-12 bg-green-200 rounded animate-pulse"></div>
+              ) : (
+                <p className="text-2xl font-bold text-green-800">{stats?.ordersToday ?? 0}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Ingresos del Día */}
+        <div className="card-padded p-4 bg-green-50 border-green-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-green-700">Ingresos del Día</p>
+              {loading ? (
+                <div className="h-7 w-20 bg-green-200 rounded animate-pulse"></div>
+              ) : (
+                <p className="text-xl font-bold text-green-800">{formatCOP(stats?.revenueToday ?? 0)}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Por Cobrar */}
+        <div className="card-padded p-4 bg-amber-50 border-amber-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm text-amber-700">Por Cobrar</p>
+              {loading ? (
+                <div className="h-7 w-16 bg-amber-200 rounded animate-pulse"></div>
+              ) : (
+                <p className="text-xl font-bold text-amber-800">{formatCOP(pendingTotal)}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Pedidos Total */}
         <Link href="/orders" className="card-clickable p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-100 rounded-lg">
@@ -142,7 +202,7 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pedidos</p>
+              <p className="text-sm text-gray-500">Pedidos Total</p>
               {loading ? (
                 <div className="h-7 w-12 bg-gray-200 rounded animate-pulse"></div>
               ) : (
@@ -152,6 +212,7 @@ export default function DashboardPage() {
           </div>
         </Link>
 
+        {/* Clientes */}
         <Link href="/customers" className="card-clickable p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -170,6 +231,7 @@ export default function DashboardPage() {
           </div>
         </Link>
 
+        {/* Productos */}
         <Link href="/products" className="card-clickable p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-teal-100 rounded-lg">
@@ -187,24 +249,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
-
-        <div className="card-padded p-4 bg-amber-50 border-amber-200">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-100 rounded-lg">
-              <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-amber-700">Por Cobrar</p>
-              {loading ? (
-                <div className="h-7 w-16 bg-amber-200 rounded animate-pulse"></div>
-              ) : (
-                <p className="text-xl font-bold text-amber-800">{formatCOP(pendingTotal)}</p>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Recent Orders */}
@@ -257,7 +301,7 @@ export default function DashboardPage() {
                       <span className="badge-success">Pagado</span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500" suppressHydrationWarning>
                     {order.customer.name} • {formatDate(order.orderDate)}
                   </p>
                 </div>

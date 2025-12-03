@@ -26,6 +26,7 @@ interface Order {
   tax: number
   total: number
   paymentMethod: string
+  invoiceNumber: string | null
   notes: string | null
   createdAt: string
   customer: {
@@ -61,6 +62,13 @@ const shippingStatusColors: Record<string, string> = {
   delivered: 'bg-green-100 text-green-800'
 }
 
+const paymentMethodLabels: Record<string, string> = {
+  cash: '💵 Efectivo',
+  nequi: '📱 Nequi',
+  bank: '🏦 Banco',
+  link: '🔗 Link'
+}
+
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -73,6 +81,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [deleting, setDeleting] = useState(false)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
 
+  // Invoice number editing state
+  const [editingInvoice, setEditingInvoice] = useState(false)
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [invoiceError, setInvoiceError] = useState<string | null>(null)
+  const [savingInvoice, setSavingInvoice] = useState(false)
+
   useEffect(() => {
     async function fetchOrder() {
       try {
@@ -81,6 +95,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         const data = await response.json()
         if (data.success) {
           setOrder(data.data)
+          setInvoiceNumber(data.data.invoiceNumber || '')
         } else {
           throw new Error(data.error)
         }
@@ -142,6 +157,44 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
     } finally {
       setUpdating(false)
     }
+  }
+
+  async function handleSaveInvoiceNumber() {
+    if (!order || savingInvoice) return
+
+    setSavingInvoice(true)
+    setInvoiceError(null)
+
+    try {
+      const response = await fetch(`/api/orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceNumber: invoiceNumber.trim() })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setInvoiceError(data.error || 'Error al guardar')
+        return
+      }
+
+      if (data.success) {
+        setOrder(data.data)
+        setEditingInvoice(false)
+      }
+    } catch (err) {
+      console.error('Error saving invoice number:', err)
+      setInvoiceError('Error de conexión')
+    } finally {
+      setSavingInvoice(false)
+    }
+  }
+
+  function handleCancelInvoiceEdit() {
+    setInvoiceNumber(order?.invoiceNumber || '')
+    setInvoiceError(null)
+    setEditingInvoice(false)
   }
 
   async function handleDownloadPdf() {
@@ -248,7 +301,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           <h1 className="text-2xl font-bold text-nouvie-navy mt-1">
             Pedido {order.orderNumber}
           </h1>
-          <p className="text-gray-500 text-sm">{formatDate(order.createdAt)}</p>
+          <p className="text-gray-500 text-sm" suppressHydrationWarning>
+            {formatDate(order.createdAt)}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${paymentStatusColors[order.paymentStatus]}`}>
@@ -289,6 +344,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
+        {/* Customer Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Cliente</h2>
           {order.customer ? (
@@ -311,27 +367,88 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </div>
 
+        {/* Invoice Number */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-          <h2 className="font-semibold text-gray-900 mb-3">Estado de Pago</h2>
-          <div className="flex flex-wrap gap-2">
-            {(['pending', 'partial', 'paid'] as const).map((status) => (
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold text-gray-900">Número de Factura</h2>
+            {!editingInvoice && (
               <button
-                key={status}
-                onClick={() => handlePaymentStatusChange(status)}
-                disabled={updating || order.paymentStatus === status}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-                  order.paymentStatus === status
-                    ? paymentStatusColors[status]
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                onClick={() => setEditingInvoice(true)}
+                className="text-sm text-nouvie-blue hover:underline"
               >
-                {paymentStatusLabels[status]}
+                Editar
               </button>
-            ))}
+            )}
           </div>
+
+          {editingInvoice ? (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="Ej: FAC-2025-001"
+                className="input"
+                disabled={savingInvoice}
+              />
+              {invoiceError && (
+                <p className="text-sm text-red-600">{invoiceError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCancelInvoiceEdit}
+                  disabled={savingInvoice}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveInvoiceNumber}
+                  disabled={savingInvoice}
+                  className="flex-1 px-3 py-2 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy transition-colors disabled:opacity-50"
+                >
+                  {savingInvoice ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className={order.invoiceNumber ? 'text-gray-900 font-medium' : 'text-gray-400 italic'}>
+              {order.invoiceNumber || 'Sin asignar'}
+            </p>
+          )}
         </div>
       </div>
 
+      {/* Payment Method */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-900 mb-3">Método de Pago</h2>
+        <p className="text-gray-900">
+          {paymentMethodLabels[order.paymentMethod] || order.paymentMethod}
+        </p>
+      </div>
+
+      {/* Payment Status */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <h2 className="font-semibold text-gray-900 mb-3">Estado de Pago</h2>
+        <div className="flex flex-wrap gap-2">
+          {(['pending', 'partial', 'paid'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => handlePaymentStatusChange(status)}
+              disabled={updating || order.paymentStatus === status}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                order.paymentStatus === status
+                  ? paymentStatusColors[status]
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {paymentStatusLabels[status]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Shipping Status */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <h2 className="font-semibold text-gray-900 mb-3">Estado de Envío</h2>
         <div className="flex flex-wrap gap-2">
@@ -352,6 +469,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {/* Products */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <h2 className="font-semibold text-gray-900 mb-4">Productos</h2>
         <div className="space-y-3">
@@ -384,6 +502,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {/* Notes */}
       {order.notes && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <h2 className="font-semibold text-gray-900 mb-2">Notas</h2>
