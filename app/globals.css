@@ -226,75 +226,103 @@ html {
    FORM COMPONENTS
    ============================================ */
 
-@layer components {
-  .input {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    transition: all 150ms;
-  }
+   @layer components {
+    .input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      transition: all 150ms;
+      -webkit-appearance: none;
+      appearance: none;
+    }
   
-  .input:focus {
-    outline: 2px solid #0440a5;
-    outline-offset: 0;
-    border-color: transparent;
-  }
+    .input:focus {
+      outline: 2px solid #0440a5;
+      outline-offset: 0;
+      border-color: transparent;
+    }
   
-  .input:disabled {
-    background-color: #f3f4f6;
-    cursor: not-allowed;
-  }
+    .input:disabled {
+      background-color: #f3f4f6;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
   
-  .input-error {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    border: 1px solid #ef4444;
-    border-radius: 0.5rem;
-    transition: all 150ms;
-  }
+    .input::placeholder {
+      color: #9ca3af;
+    }
   
-  .input-error:focus {
-    outline: 2px solid #ef4444;
-    outline-offset: 0;
-    border-color: transparent;
-  }
+    .input-error {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid #ef4444;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      transition: all 150ms;
+      -webkit-appearance: none;
+      appearance: none;
+    }
   
-  .select {
-    width: 100%;
-    padding: 0.5rem 1rem;
-    padding-right: 2.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.5rem;
-    background-color: white;
-    background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E');
-    background-size: 1.5rem;
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    appearance: none;
-    transition: all 150ms;
-  }
+    .input-error:focus {
+      outline: 2px solid #ef4444;
+      outline-offset: 0;
+      border-color: transparent;
+    }
   
-  .select:focus {
-    outline: 2px solid #0440a5;
-    outline-offset: 0;
-    border-color: transparent;
-  }
+    .select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      padding-right: 2.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      background-color: white;
+      background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20stroke%3D%22%236b7280%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%221.5%22%20d%3D%22M6%208l4%204%204-4%22%2F%3E%3C%2Fsvg%3E');
+      background-size: 1.5rem;
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      font-size: 1rem;
+      line-height: 1.5;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: all 150ms;
+    }
   
-  .label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 0.25rem;
-  }
+    .select:focus {
+      outline: 2px solid #0440a5;
+      outline-offset: 0;
+      border-color: transparent;
+    }
   
-  .error-message {
-    font-size: 0.875rem;
-    color: #dc2626;
-    margin-top: 0.25rem;
+    .select:disabled {
+      background-color: #f3f4f6;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  
+    .label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+  
+    .error-message {
+      font-size: 0.875rem;
+      color: #dc2626;
+      margin-top: 0.375rem;
+    }
+  
+    /* Textarea specific styles */
+    textarea.input {
+      min-height: 5rem;
+      resize: vertical;
+    }
   }
-}
 
 /* ============================================
    BADGE COMPONENTS
@@ -373,3 +401,80 @@ html {
   .animate-fade-out {
     animation: fade-out 1s ease-out forwards;
   }
+
+/* ============================================
+   SAFE AREA UTILITIES (Notched Phones)
+   ============================================ */
+
+/* Safe area padding utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Combined safe area for bottom navigation */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Ensure bottom nav doesn't get cut off on notched phones */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ============================================
+   MOBILE TOUCH IMPROVEMENTS
+   ============================================ */
+
+/* Prevent text selection on interactive elements */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Improve tap highlighting on mobile */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  .card-clickable {
+    -webkit-tap-highlight-color: rgba(4, 64, 165, 0.1);
+  }
+}
+
+/* Prevent pull-to-refresh on certain elements */
+.no-overscroll {
+  overscroll-behavior: contain;
+}
+
+/* ============================================
+   MOBILE SCROLL IMPROVEMENTS
+   ============================================ */
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth momentum scrolling on iOS */
+.scroll-smooth-touch {
+  -webkit-overflow-scrolling: touch;
+}

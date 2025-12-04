@@ -35,7 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+    <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-100">
       <div className="flex justify-center mb-6">
         <Image
           src="/nouvie-logo.png"
@@ -50,7 +50,7 @@ export default function LoginPage() {
         Sales & Inventory System
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
             {error}
@@ -70,6 +70,7 @@ export default function LoginPage() {
             placeholder="admin@nouvie.com"
             required
             disabled={loading}
+            autoComplete="email"
           />
         </div>
 
@@ -86,13 +87,14 @@ export default function LoginPage() {
             placeholder="••••••••"
             required
             disabled={loading}
+            autoComplete="current-password"
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-gradient-to-r from-nouvie-blue to-nouvie-light-blue text-white font-medium rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3.5 bg-gradient-to-r from-nouvie-blue to-nouvie-light-blue text-white font-semibold rounded-lg hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-50 text-base"
         >
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>

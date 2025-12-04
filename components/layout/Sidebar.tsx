@@ -122,14 +122,14 @@ export function Sidebar() {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
         <div className="flex justify-around items-center h-16 pb-safe">
           {/* Regular nav items */}
           {navItems.slice(0, 2).map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors no-select ${
                 isActive(item.href) && !isNewOrder()
                   ? 'text-nouvie-blue'
                   : 'text-gray-400'
@@ -145,14 +145,14 @@ export function Sidebar() {
           {/* Center: Nuevo Pedido (prominent) */}
           <Link
             href="/orders/new"
-            className="flex flex-col items-center justify-center flex-1 h-full"
+            className="flex flex-col items-center justify-center flex-1 h-full no-select"
           >
-            <div className={`flex items-center justify-center w-12 h-12 rounded-full -mt-4 shadow-lg ${
+            <div className={`flex items-center justify-center w-14 h-14 rounded-full -mt-6 shadow-lg ${
               isNewOrder()
                 ? 'bg-nouvie-turquoise'
                 : 'bg-gradient-to-r from-nouvie-turquoise to-nouvie-light-blue'
             }`}>
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </div>
@@ -166,7 +166,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors no-select ${
                 isActive(item.href) && !isNewOrder()
                   ? 'text-nouvie-blue'
                   : 'text-gray-400'

@@ -121,7 +121,7 @@ export default function CustomerDetailPage() {
     return (
       <div className="animate-pulse space-y-6">
         <div className="h-8 bg-gray-200 rounded w-64"></div>
-        <div className="card-padded space-y-4">
+        <div className="bg-white rounded-xl p-6 space-y-4">
           <div className="h-6 bg-gray-200 rounded w-48"></div>
           <div className="h-4 bg-gray-200 rounded w-32"></div>
           <div className="h-4 bg-gray-200 rounded w-40"></div>
@@ -178,53 +178,49 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <svg
-            className="h-5 w-5 text-gray-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-900">{customer.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="badge-info">CC: {customer.cedula}</span>
-            <span className="badge-success">Activo</span>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-nouvie-blue mb-1 py-1"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Atrás
+            </button>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{customer.name}</h1>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowDeleteDialog(true)}
+            className="flex-shrink-0 px-4 py-2 text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors font-medium"
+          >
+            Eliminar
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowDeleteDialog(true)}
-          className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
-        >
-          Eliminar
-        </button>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="badge-info">CC: {customer.cedula}</span>
+          <span className="badge-success">Activo</span>
+        </div>
       </div>
 
-      <div className="card-padded">
+      {/* Contact Info */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Información de Contacto
         </h2>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <dt className="text-sm font-medium text-gray-500">Email</dt>
             <dd className="mt-1 text-gray-900">
               {customer.email ? (
-                <a href={'mailto:' + customer.email} className="text-nouvie-blue hover:underline">
+                <a href={'mailto:' + customer.email} className="text-nouvie-blue hover:underline break-all">
                   {customer.email}
                 </a>
               ) : (
@@ -235,8 +231,8 @@ export default function CustomerDetailPage() {
           <div>
             <dt className="text-sm font-medium text-gray-500">Teléfono</dt>
             <dd className="mt-1 text-gray-900">
-              <a href={'tel:' + customer.phone} className="text-nouvie-blue hover:underline">
-                {customer.phone}
+              <a href={'tel:' + customer.phone} className="text-nouvie-blue hover:underline inline-flex items-center gap-2 py-1">
+                📞 {customer.phone}
               </a>
             </dd>
           </div>
@@ -255,7 +251,8 @@ export default function CustomerDetailPage() {
         </dl>
       </div>
 
-      <div className="card-padded">
+      {/* Orders */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
             Pedidos de este Cliente
@@ -290,15 +287,15 @@ export default function CustomerDetailPage() {
         )}
 
         {hasOrders && (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 -mx-4 sm:-mx-6">
             {customer.orders.map((order) => (
               <Link
                 key={order.id}
                 href={'/orders/' + order.id}
-                className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors"
+                className="flex items-center justify-between py-4 px-4 sm:px-6 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
-                <div>
-                  <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0 pr-4">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-900">
                       {order.orderNumber}
                     </span>
@@ -306,11 +303,11 @@ export default function CustomerDetailPage() {
                       {PAYMENT_STATUS_LABELS[order.paymentStatus]}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mt-1">
                     {formatDate(order.createdAt)}
                   </p>
                 </div>
-                <span className="font-semibold text-nouvie-blue">
+                <span className="font-semibold text-nouvie-blue text-lg flex-shrink-0">
                   {formatCOP(order.total)}
                 </span>
               </Link>

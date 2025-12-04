@@ -157,6 +157,7 @@ export function ProductPicker({
 
   return (
     <div className="space-y-4">
+      {/* Search Input */}
       <div className="relative">
         <input
           type="text"
@@ -164,10 +165,10 @@ export function ProductPicker({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar productos..."
           disabled={disabled}
-          className="input pr-10"
+          className="input pr-12"
         />
         <svg
-          className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
+          className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -181,15 +182,16 @@ export function ProductPicker({
         </svg>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+      {/* Category Filter Chips */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
         <button
           type="button"
           onClick={() => setSelectedCategory('all')}
           disabled={disabled}
-          className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
             selectedCategory === 'all'
               ? 'bg-nouvie-blue text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
           }`}
         >
           Todos
@@ -200,10 +202,10 @@ export function ProductPicker({
             type="button"
             onClick={() => setSelectedCategory(cat)}
             disabled={disabled}
-            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
               selectedCategory === cat
                 ? 'bg-nouvie-blue text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
             }`}
           >
             {cat}
@@ -211,24 +213,26 @@ export function ProductPicker({
         ))}
       </div>
 
+      {/* Cart Summary */}
       {items.length > 0 && (
-        <div className="bg-nouvie-pale-blue/30 rounded-lg p-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🛒</span>
+        <div className="bg-nouvie-pale-blue/30 rounded-xl p-4 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🛒</span>
             <span className="font-medium text-nouvie-blue">
               {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
             </span>
           </div>
-          <span className="font-bold text-nouvie-blue">
+          <span className="font-bold text-lg text-nouvie-blue">
             {formatCOP(totalAmount)}
           </span>
         </div>
       )}
 
-      <div className="space-y-2">
+      {/* Product List */}
+      <div className="space-y-3">
         {loading && (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-2 text-nouvie-blue" fill="none" viewBox="0 0 24 24">
+          <div className="text-center py-12 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-3 text-nouvie-blue" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
@@ -243,13 +247,13 @@ export function ProductPicker({
         )}
 
         {!loading && !error && filteredProducts.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No se encontraron productos</p>
+          <div className="text-center py-12 text-gray-500">
+            <p className="font-medium">No se encontraron productos</p>
             {(search || selectedCategory !== 'all') && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-2 text-nouvie-blue hover:underline text-sm"
+                className="mt-3 text-nouvie-blue hover:underline font-medium"
               >
                 Limpiar filtros
               </button>
@@ -267,17 +271,17 @@ export function ProductPicker({
           return (
             <div
               key={product.id}
-              className={`relative border rounded-lg p-4 transition-all ${
+              className={`relative border-2 rounded-xl p-4 transition-all ${
                 isInCart
                   ? 'border-nouvie-blue bg-nouvie-pale-blue/10'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  : 'border-gray-200 bg-white'
               } ${isOutOfStock ? 'opacity-60' : ''}`}
             >
-              {/* "Añadido ✓" Flash */}
+              {/* Added Flash */}
               {wasJustAdded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-green-500/90 rounded-lg animate-fade-out z-10">
-                  <div className="flex items-center gap-2 text-white font-semibold">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="absolute inset-0 flex items-center justify-center bg-green-500/90 rounded-xl animate-fade-out z-10">
+                  <div className="flex items-center gap-2 text-white font-semibold text-lg">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                     Añadido
@@ -287,14 +291,14 @@ export function ProductPicker({
 
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-medium text-gray-900">{product.name}</h4>
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <h4 className="font-medium text-gray-900 leading-tight">{product.name}</h4>
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
                       {product.category}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-sm">
-                    <span className="font-semibold text-nouvie-blue">
+                  <div className="mt-2 flex items-center gap-3 text-sm flex-wrap">
+                    <span className="font-bold text-nouvie-blue text-base">
                       {formatCOP(product.price)}
                     </span>
                     <span className="text-gray-500">
@@ -317,18 +321,18 @@ export function ProductPicker({
                         type="button"
                         onClick={() => handleDecrement(product.id)}
                         disabled={disabled}
-                        className="w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-xl font-bold text-gray-700 transition-colors"
+                        className="w-12 h-12 rounded-full bg-gray-200 hover:bg-gray-300 active:bg-gray-400 flex items-center justify-center text-2xl font-bold text-gray-700 transition-colors"
                       >
                         −
                       </button>
-                      <span className="w-10 text-center font-bold text-lg text-nouvie-blue">
+                      <span className="w-12 text-center font-bold text-xl text-nouvie-blue">
                         {quantity}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleIncrement(product.id)}
                         disabled={disabled || isOutOfStock}
-                        className="w-10 h-10 rounded-full bg-nouvie-blue hover:bg-nouvie-blue/90 flex items-center justify-center text-xl font-bold text-white transition-colors disabled:opacity-50"
+                        className="w-12 h-12 rounded-full bg-nouvie-blue hover:bg-nouvie-navy active:bg-nouvie-navy flex items-center justify-center text-2xl font-bold text-white transition-colors disabled:opacity-50"
                       >
                         +
                       </button>
@@ -338,7 +342,7 @@ export function ProductPicker({
                       type="button"
                       onClick={() => handleAdd(product)}
                       disabled={disabled || isOutOfStock}
-                      className="px-4 py-2 bg-nouvie-turquoise text-white rounded-lg font-medium hover:bg-nouvie-turquoise/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-5 py-3 bg-nouvie-turquoise text-white rounded-xl font-medium hover:bg-nouvie-turquoise/90 active:bg-nouvie-turquoise/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-base"
                     >
                       Agregar
                     </button>
@@ -347,11 +351,11 @@ export function ProductPicker({
               </div>
 
               {isInCart && (
-                <div className="mt-2 pt-2 border-t border-nouvie-blue/20 flex justify-between items-center text-sm">
+                <div className="mt-3 pt-3 border-t border-nouvie-blue/20 flex justify-between items-center">
                   <span className="text-gray-600">
                     {quantity} × {formatCOP(product.price)}
                   </span>
-                  <span className="font-bold text-nouvie-blue">
+                  <span className="font-bold text-nouvie-blue text-lg">
                     {formatCOP(quantity * product.price)}
                   </span>
                 </div>

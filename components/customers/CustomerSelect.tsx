@@ -109,13 +109,11 @@ export function CustomerSelect({
   async function handleCustomerCreated() {
     setIsModalOpen(false)
     
-    // Fetch the most recently created customer and select them
     try {
       const response = await fetch('/api/customers')
       const data: CustomersApiResponse = await response.json()
       
       if (data.success && data.data.length > 0) {
-        // Sort by createdAt descending and get the first one
         const sortedCustomers = [...data.data].sort((a, b) => {
           const dateA = new Date(a.createdAt).getTime()
           const dateB = new Date(b.createdAt).getTime()
@@ -133,18 +131,14 @@ export function CustomerSelect({
   if (selected) {
     return (
       <div className="card p-4">
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <p className="font-semibold text-lg text-gray-900">
+        <div className="flex justify-between items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-lg text-gray-900 truncate">
               {selected.name}
             </p>
             <div className="mt-2 space-y-1 text-sm text-gray-600">
               <p>
                 <span className="font-medium">Cédula:</span> {selected.cedula}
-              </p>
-              <p>
-                <span className="font-medium">Email:</span>{' '}
-                {selected.email || 'No registrado'}
               </p>
               <p>
                 <span className="font-medium">Teléfono:</span> {selected.phone}
@@ -160,7 +154,7 @@ export function CustomerSelect({
             type="button"
             onClick={handleChange}
             disabled={disabled}
-            className="btn-outline btn-sm"
+            className="flex-shrink-0 px-4 py-2 text-sm font-medium text-nouvie-blue border-2 border-nouvie-blue rounded-lg hover:bg-nouvie-blue hover:text-white active:bg-nouvie-navy transition-colors"
           >
             Cambiar
           </button>
@@ -185,11 +179,11 @@ export function CustomerSelect({
             onFocus={() => setIsOpen(true)}
             placeholder={placeholder}
             disabled={disabled}
-            className="input pr-10"
+            className="input pr-12"
             autoComplete="off"
           />
           
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
             {loading ? (
               <svg
                 className="animate-spin h-5 w-5 text-gray-400"
@@ -232,59 +226,56 @@ export function CustomerSelect({
 
         {/* Dropdown */}
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-            {/* Add New Customer Button - Always visible at top */}
+          <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-80 overflow-y-auto overscroll-contain">
+            {/* Add New Customer Button */}
             <button
               type="button"
               onClick={handleOpenNewCustomerModal}
-              className="w-full px-4 py-3 text-left bg-nouvie-pale-blue/20 hover:bg-nouvie-pale-blue/30 border-b border-gray-200 transition-colors flex items-center gap-3"
+              className="w-full px-4 py-4 text-left bg-nouvie-pale-blue/20 hover:bg-nouvie-pale-blue/30 active:bg-nouvie-pale-blue/40 border-b border-gray-200 transition-colors flex items-center gap-3"
             >
-              <div className="w-8 h-8 bg-nouvie-blue rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-nouvie-blue rounded-full flex items-center justify-center flex-shrink-0">
                 <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </div>
               <div>
                 <p className="font-medium text-nouvie-blue">Nuevo Cliente</p>
-                <p className="text-xs text-gray-500">Crear un cliente nuevo</p>
+                <p className="text-sm text-gray-500">Crear un cliente nuevo</p>
               </div>
             </button>
 
-            {/* Helper text when not enough characters */}
+            {/* Helper text */}
             {search.length > 0 && search.length < 2 && (
-              <div className="p-4 text-center text-gray-500 text-sm">
+              <div className="px-4 py-4 text-center text-gray-500">
                 Escribe al menos 2 caracteres para buscar
               </div>
             )}
 
             {/* Error state */}
             {error && (
-              <div className="p-4 text-center text-red-600">
+              <div className="px-4 py-4 text-center text-red-600">
                 {error}
               </div>
             )}
 
             {/* Loading state */}
             {loading && !error && search.length >= 2 && (
-              <div className="p-4 text-center text-gray-500">
+              <div className="px-4 py-4 text-center text-gray-500">
                 Buscando...
               </div>
             )}
 
             {/* Empty state */}
             {!loading && !error && search.length >= 2 && customers.length === 0 && (
-              <div className="p-4 text-center text-gray-500">
-                <p>No se encontraron clientes</p>
-                <p className="text-sm mt-1">
-                  ¿Es un cliente nuevo?{' '}
-                  <button
-                    type="button"
-                    onClick={handleOpenNewCustomerModal}
-                    className="text-nouvie-blue hover:underline font-medium"
-                  >
-                    Crear cliente
-                  </button>
-                </p>
+              <div className="px-4 py-6 text-center text-gray-500">
+                <p className="font-medium">No se encontraron clientes</p>
+                <button
+                  type="button"
+                  onClick={handleOpenNewCustomerModal}
+                  className="mt-2 text-nouvie-blue hover:underline font-medium"
+                >
+                  Crear cliente nuevo →
+                </button>
               </div>
             )}
 
@@ -296,7 +287,7 @@ export function CustomerSelect({
                     <button
                       type="button"
                       onClick={() => handleSelect(customer)}
-                      className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
+                      className="w-full px-4 py-4 text-left hover:bg-gray-50 active:bg-gray-100 focus:bg-gray-50 focus:outline-none transition-colors"
                     >
                       <p className="font-medium text-gray-900">
                         {customer.name}
@@ -312,18 +303,16 @@ export function CustomerSelect({
             )}
 
             {/* Cancel button */}
-            {isOpen && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false)
-                  setSearch('')
-                }}
-                className="w-full p-3 text-center text-gray-600 hover:text-gray-800 bg-gray-50 border-t border-gray-200 transition-colors text-sm"
-              >
-                Cancelar
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false)
+                setSearch('')
+              }}
+              className="w-full px-4 py-4 text-center text-gray-600 hover:text-gray-800 active:bg-gray-100 bg-gray-50 border-t border-gray-200 transition-colors font-medium"
+            >
+              Cancelar
+            </button>
           </div>
         )}
       </div>

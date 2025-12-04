@@ -50,23 +50,29 @@ export function ConfirmDialog({
   if (!isOpen) return null
 
   const confirmButtonClass = variant === 'danger'
-    ? 'bg-red-600 hover:bg-red-700 text-white'
-    : 'bg-nouvie-blue hover:bg-nouvie-navy text-white'
+    ? 'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white'
+    : 'bg-nouvie-blue hover:bg-nouvie-navy active:bg-nouvie-navy text-white'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50"
       onClick={handleBackdropClick}
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-sm bg-white rounded-xl shadow-xl"
+        className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-xl shadow-xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="dialog-title"
         aria-describedby="dialog-message"
       >
-        <div className="p-6">
+        {/* Drag indicator for mobile */}
+        <div className="flex justify-center pt-2 sm:hidden">
+          <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        </div>
+
+        <div className="p-6 pt-4 sm:pt-6">
           <h2 id="dialog-title" className="text-lg font-semibold text-gray-900">
             {title}
           </h2>
@@ -75,12 +81,12 @@ export function ConfirmDialog({
           </p>
         </div>
 
-        <div className="flex gap-3 px-6 pb-6">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 px-6 pb-6">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-3 sm:py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
           >
             {cancelLabel}
           </button>
@@ -88,7 +94,7 @@ export function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={loading}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${confirmButtonClass}`}
+            className={`flex-1 px-4 py-3 sm:py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${confirmButtonClass}`}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

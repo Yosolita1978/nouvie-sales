@@ -123,10 +123,11 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   }
 
   const canSubmit = selectedCustomer && cart.length > 0 && !loading
+  const showMobileBar = cart.length > 0
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6 pb-32 md:pb-6">
+      <form onSubmit={handleSubmit} className={`space-y-6 ${showMobileBar ? 'pb-36 md:pb-6' : 'pb-6'}`}>
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}
@@ -160,7 +161,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Método de Pago <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             {PAYMENT_METHODS.map((method) => (
               <button
                 key={method.value}
@@ -170,7 +171,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                 className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   paymentMethod === method.value
                     ? 'bg-nouvie-blue text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
                 } disabled:opacity-50`}
               >
                 <span>{method.icon}</span>
@@ -269,15 +270,18 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         </div>
       </form>
 
-      {/* Mobile Fixed Bottom Bar */}
-      {cart.length > 0 && (
-        <div className="md:hidden fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3">
+      {/* Mobile Fixed Bottom Bar - positioned above bottom nav */}
+      {showMobileBar && (
+        <div 
+          className="md:hidden fixed left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3"
+          style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-sm text-gray-600">
                 {totalItems} {totalItems === 1 ? 'producto' : 'productos'}
               </p>
-              <p className="text-lg font-bold text-nouvie-blue">
+              <p className="text-lg font-bold text-nouvie-blue truncate">
                 {formatCOP(total)}
               </p>
             </div>
@@ -285,7 +289,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
               type="button"
               onClick={() => handleSubmit()}
               disabled={!canSubmit}
-              className="px-6 py-3 bg-gradient-to-r from-nouvie-blue to-nouvie-light-blue text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-nouvie-blue to-nouvie-light-blue text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-transform"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
