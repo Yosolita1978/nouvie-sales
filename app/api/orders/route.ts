@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import type { CreateOrderRequest } from '@/types'
 
 const TAX_RATE = 0.19 // 19% IVA
+
+// Type for items in the order creation request
+interface OrderItemInput {
+  productId: string
+  quantity: number
+  unitPrice: number
+}
+
+// Type for the full request body
+interface CreateOrderBody {
+  customerId: string
+  items: OrderItemInput[]
+  paymentMethod: 'cash' | 'nequi' | 'bank' | 'link'
+  notes?: string
+}
 
 /**
  * GET /api/orders
@@ -129,7 +143,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body: CreateOrderRequest = await request.json()
+    const body: CreateOrderBody = await request.json()
     const { customerId, items, paymentMethod, notes } = body
 
     // Validate required fields
