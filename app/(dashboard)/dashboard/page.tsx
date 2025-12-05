@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentOrders, setRecentOrders] = useState<OrderWithDetails[]>([])
   const [outOfStockProducts, setOutOfStockProducts] = useState<Product[]>([])
+  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -46,8 +47,11 @@ export default function DashboardPage() {
         }
 
         if (productsData.success) {
-          const outOfStock = productsData.data.filter((p: Product) => p.stock === 0)
+          const products: Product[] = productsData.data
+          const outOfStock = products.filter((p) => p.stock === 0)
+          const lowStock = products.filter((p) => p.stock > 0 && p.stock <= p.minStock)
           setOutOfStockProducts(outOfStock)
+          setLowStockProducts(lowStock)
         }
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
@@ -62,6 +66,8 @@ export default function DashboardPage() {
 
   const pendingOrders = recentOrders.filter(o => o.paymentStatus === 'pending')
   const pendingTotal = pendingOrders.reduce((sum, o) => sum + o.total, 0)
+
+  const hasStockAlerts = outOfStockProducts.length > 0 || lowStockProducts.length > 0
 
   return (
     <div className="space-y-6">
@@ -92,45 +98,101 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Out of Stock Alert */}
-      {!loading && outOfStockProducts.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
-              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-red-800">
-                {outOfStockProducts.length} producto{outOfStockProducts.length !== 1 ? 's' : ''} agotado{outOfStockProducts.length !== 1 ? 's' : ''}
-              </h3>
-              <p className="text-sm text-red-600 mt-1">
-                Estos productos no tienen stock disponible
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {outOfStockProducts.slice(0, 5).map((product) => (
-                  <span
-                    key={product.id}
-                    className="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 text-sm rounded-lg"
-                  >
-                    {product.name}
-                  </span>
-                ))}
-                {outOfStockProducts.length > 5 && (
-                  <span className="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 text-sm rounded-lg">
-                    +{outOfStockProducts.length - 5} más
-                  </span>
-                )}
-              </div>
-              <Link
-                href="/products"
-                className="inline-block mt-3 text-sm font-medium text-red-700 hover:text-red-900 hover:underline"
-              >
-                Ver todos los productos →
-              </Link>
-            </div>
+      {/* ============================================
+          STOCK ALERTS SECTION - High Visibility
+          ============================================ */}
+      {!loading && hasStockAlerts && (
+        <div className="space-y-4">
+          {/* Section Header */}
+          <div className="flex items-center gap-2">
+            <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 className="text-lg font-bold text-gray-900">⚠️ Alertas de Inventario</h2>
           </div>
+
+          {/* Out of Stock Alert - RED */}
+          {outOfStockProducts.length > 0 && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-red-100 rounded-full flex-shrink-0">
+                  <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-red-800">
+                    🚨 {outOfStockProducts.length} Producto{outOfStockProducts.length !== 1 ? 's' : ''} AGOTADO{outOfStockProducts.length !== 1 ? 'S' : ''}
+                  </h3>
+                  <p className="text-red-600 mt-1">
+                    Estos productos no tienen stock y no se pueden vender
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {outOfStockProducts.slice(0, 8).map((product) => (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.id}`}
+                        className="inline-flex items-center gap-1 px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <span>❌</span>
+                        <span>{product.name}</span>
+                      </Link>
+                    ))}
+                    {outOfStockProducts.length > 8 && (
+                      <Link
+                        href="/products"
+                        className="inline-flex items-center px-3 py-2 bg-red-200 hover:bg-red-300 text-red-800 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        +{outOfStockProducts.length - 8} más →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Low Stock Alert - YELLOW */}
+          {lowStockProducts.length > 0 && (
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-100 rounded-full flex-shrink-0">
+                  <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-amber-800">
+                    ⚠️ {lowStockProducts.length} Producto{lowStockProducts.length !== 1 ? 's' : ''} con Stock Bajo
+                  </h3>
+                  <p className="text-amber-700 mt-1">
+                    Estos productos están por debajo del stock mínimo recomendado
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {lowStockProducts.slice(0, 8).map((product) => (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.id}`}
+                        className="inline-flex items-center gap-1 px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <span>⚠️</span>
+                        <span>{product.name}</span>
+                        <span className="text-amber-600">({product.stock})</span>
+                      </Link>
+                    ))}
+                    {lowStockProducts.length > 8 && (
+                      <Link
+                        href="/products"
+                        className="inline-flex items-center px-3 py-2 bg-amber-200 hover:bg-amber-300 text-amber-800 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        +{lowStockProducts.length - 8} más →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
