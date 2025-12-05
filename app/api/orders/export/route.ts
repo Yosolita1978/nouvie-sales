@@ -29,19 +29,22 @@ const shippingStatusLabels: Record<string, string> = {
  * Query Parameters:
  *   - from: Start date (ISO string, optional)
  *   - to: End date (ISO string, optional)
+ *   - paymentMethod: Filter by payment method (cash, nequi, bank, link, optional)
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const fromParam = searchParams.get('from')
     const toParam = searchParams.get('to')
+    const paymentMethod = searchParams.get('paymentMethod')
 
-    // Build where clause for date filtering
+    // Build where clause for filtering
     const whereConditions: {
       orderDate?: {
         gte?: Date
         lte?: Date
       }
+      paymentMethod?: string
     } = {}
 
     if (fromParam || toParam) {
@@ -58,6 +61,11 @@ export async function GET(request: NextRequest) {
         toDate.setHours(23, 59, 59, 999)
         whereConditions.orderDate.lte = toDate
       }
+    }
+
+    // Filter by payment method
+    if (paymentMethod) {
+      whereConditions.paymentMethod = paymentMethod
     }
 
     // Fetch orders
@@ -192,15 +200,19 @@ export async function GET(request: NextRequest) {
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer()
 
-    // Generate filename with date range
+    // Generate filename with filters
     let filename = 'pedidos-nouvie'
+    if (paymentMethod) {
+      const methodLabel = paymentMethodLabels[paymentMethod] || paymentMethod
+      filename += `-${methodLabel.toLowerCase()}`
+    }
     if (fromParam && toParam) {
       filename += `-${fromParam}-a-${toParam}`
     } else if (fromParam) {
       filename += `-desde-${fromParam}`
     } else if (toParam) {
       filename += `-hasta-${toParam}`
-    } else {
+    } else if (!paymentMethod) {
       filename += `-todos`
     }
     filename += '.xlsx'

@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui'
 import type { OrderWithDetails } from '@/types'
 
 type FilterType = 'all' | 'pending-payment' | 'pending-shipping' | 'this-week'
+type PaymentMethodFilter = 'all' | 'cash' | 'nequi' | 'bank' | 'link'
 
 const FILTERS: { value: FilterType; label: string }[] = [
   { value: 'all', label: 'Todos' },
@@ -16,17 +17,27 @@ const FILTERS: { value: FilterType; label: string }[] = [
   { value: 'this-week', label: 'Esta Semana' }
 ]
 
+const PAYMENT_METHOD_FILTERS: { value: PaymentMethodFilter; label: string; icon: string }[] = [
+  { value: 'all', label: 'Todos', icon: '💳' },
+  { value: 'cash', label: 'Efectivo', icon: '💵' },
+  { value: 'nequi', label: 'Nequi', icon: '📱' },
+  { value: 'bank', label: 'Banco', icon: '🏦' },
+  { value: 'link', label: 'Link', icon: '🔗' }
+]
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>('all')
 
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportFrom, setExportFrom] = useState('')
   const [exportTo, setExportTo] = useState('')
+  const [exportPaymentMethod, setExportPaymentMethod] = useState<PaymentMethodFilter>('all')
   const [exporting, setExporting] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
@@ -49,6 +60,10 @@ export default function OrdersPage() {
         params.set('shippingStatus', 'preparing')
       } else if (activeFilter === 'this-week') {
         params.set('period', 'week')
+      }
+
+      if (paymentMethodFilter !== 'all') {
+        params.set('paymentMethod', paymentMethodFilter)
       }
 
       const url = params.toString()
@@ -74,7 +89,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, activeFilter])
+  }, [debouncedSearch, activeFilter, paymentMethodFilter])
 
   useEffect(() => {
     fetchOrders()
@@ -116,9 +131,20 @@ export default function OrdersPage() {
     )
   }
 
+  function getPaymentMethodLabel(method: string) {
+    const labels: Record<string, string> = {
+      cash: '💵 Efectivo',
+      nequi: '📱 Nequi',
+      bank: '🏦 Banco',
+      link: '🔗 Link'
+    }
+    return labels[method] || method
+  }
+
   function clearFilters() {
     setSearch('')
     setActiveFilter('all')
+    setPaymentMethodFilter('all')
   }
 
   function handleOpenExportModal() {
@@ -129,6 +155,7 @@ export default function OrdersPage() {
 
     setExportTo(today.toISOString().split('T')[0])
     setExportFrom(thirtyDaysAgo.toISOString().split('T')[0])
+    setExportPaymentMethod('all')
     setShowExportModal(true)
   }
 
@@ -136,6 +163,7 @@ export default function OrdersPage() {
     setShowExportModal(false)
     setExportFrom('')
     setExportTo('')
+    setExportPaymentMethod('all')
   }
 
   async function handleExport() {
@@ -146,6 +174,7 @@ export default function OrdersPage() {
       const params = new URLSearchParams()
       if (exportFrom) params.set('from', exportFrom)
       if (exportTo) params.set('to', exportTo)
+      if (exportPaymentMethod !== 'all') params.set('paymentMethod', exportPaymentMethod)
 
       const url = params.toString()
         ? `/api/orders/export?${params.toString()}`
@@ -191,7 +220,7 @@ export default function OrdersPage() {
     }
   }
 
-  const hasActiveFilters = search !== '' || activeFilter !== 'all'
+  const hasActiveFilters = search !== '' || activeFilter !== 'all' || paymentMethodFilter !== 'all'
 
   return (
     <div className="space-y-6">
@@ -272,7 +301,7 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Filter Buttons */}
+      {/* Status Filter Buttons */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {FILTERS.map((filter) => (
           <button
@@ -286,6 +315,26 @@ export default function OrdersPage() {
             }`}
           >
             {filter.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Payment Method Filter Buttons */}
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        <span className="text-sm text-gray-500 self-center mr-2">Método de pago:</span>
+        {PAYMENT_METHOD_FILTERS.map((filter) => (
+          <button
+            key={filter.value}
+            type="button"
+            onClick={() => setPaymentMethodFilter(filter.value)}
+            className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+              paymentMethodFilter === filter.value
+                ? 'bg-nouvie-turquoise text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <span>{filter.icon}</span>
+            <span>{filter.label}</span>
           </button>
         ))}
       </div>
@@ -344,7 +393,7 @@ export default function OrdersPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h3 className="font-semibold text-lg text-gray-900">
                       {order.orderNumber}
                     </h3>
@@ -355,7 +404,7 @@ export default function OrdersPage() {
                     {order.customer.name}
                   </p>
                   <p className="text-sm text-gray-500" suppressHydrationWarning>
-                    {formatDate(order.orderDate)} • {order.items.length} producto{order.items.length !== 1 ? 's' : ''}
+                    {formatDate(order.orderDate)} • {order.items.length} producto{order.items.length !== 1 ? 's' : ''} • {getPaymentMethodLabel(order.paymentMethod)}
                   </p>
                 </div>
 
@@ -444,7 +493,7 @@ export default function OrdersPage() {
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            Selecciona el rango de fechas para exportar. Deja vacío para exportar todos los pedidos.
+            Selecciona los filtros para exportar. Deja vacío para exportar todos los pedidos.
           </p>
 
           <div>
@@ -473,6 +522,25 @@ export default function OrdersPage() {
               className="input"
               disabled={exporting}
             />
+          </div>
+
+          <div>
+            <label htmlFor="exportPaymentMethod" className="label">
+              Método de Pago
+            </label>
+            <select
+              id="exportPaymentMethod"
+              value={exportPaymentMethod}
+              onChange={(e) => setExportPaymentMethod(e.target.value as PaymentMethodFilter)}
+              className="select"
+              disabled={exporting}
+            >
+              <option value="all">Todos los métodos</option>
+              <option value="cash">💵 Efectivo</option>
+              <option value="nequi">📱 Nequi</option>
+              <option value="bank">🏦 Banco</option>
+              <option value="link">🔗 Link</option>
+            </select>
           </div>
 
           <div className="flex gap-3 pt-4">

@@ -28,6 +28,7 @@ interface CreateOrderBody {
  *   - search: Filter by order number or customer name
  *   - paymentStatus: Filter by payment status (pending, partial, paid)
  *   - shippingStatus: Filter by shipping status (preparing, shipped, delivered)
+ *   - paymentMethod: Filter by payment method (cash, nequi, bank, link)
  *   - period: Filter by time period (week = last 7 days)
  */
 export async function GET(request: NextRequest) {
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const paymentStatus = searchParams.get('paymentStatus')
     const shippingStatus = searchParams.get('shippingStatus')
+    const paymentMethod = searchParams.get('paymentMethod')
     const period = searchParams.get('period')
 
     // Build where clause dynamically
@@ -49,6 +51,11 @@ export async function GET(request: NextRequest) {
     // Filter by shipping status
     if (shippingStatus) {
       whereConditions.shippingStatus = shippingStatus
+    }
+
+    // Filter by payment method
+    if (paymentMethod) {
+      whereConditions.paymentMethod = paymentMethod
     }
 
     // Filter by period (this week = last 7 days)
