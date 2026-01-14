@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { CustomerListItem } from '@/types'
 
 interface CustomerFormData {
   cedula: string
@@ -12,21 +13,36 @@ interface CustomerFormData {
 }
 
 interface CustomerFormProps {
-  onSuccess: () => void
+  onSuccess: (updatedCustomer?: CustomerListItem) => void
   onCancel: () => void
+  customer?: CustomerListItem | null
+  mode?: 'create' | 'edit'
 }
 
-const initialFormData: CustomerFormData = {
-  cedula: '',
-  name: '',
-  email: '',
-  phone: '',
-  address: '',
-  city: ''
+function getInitialFormData(customer?: CustomerListItem | null): CustomerFormData {
+  if (customer) {
+    return {
+      cedula: customer.cedula,
+      name: customer.name,
+      email: customer.email || '',
+      phone: customer.phone,
+      address: customer.address || '',
+      city: customer.city || ''
+    }
+  }
+  return {
+    cedula: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: ''
+  }
 }
 
-export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
-  const [formData, setFormData] = useState<CustomerFormData>(initialFormData)
+export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }: CustomerFormProps) {
+  const [formData, setFormData] = useState<CustomerFormData>(() => getInitialFormData(customer))
+  const isEditMode = mode === 'edit'
   const [errors, setErrors] = useState<Partial<CustomerFormData>>({})
   const [apiError, setApiError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -34,10 +50,13 @@ export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
   function validate(): boolean {
     const newErrors: Partial<CustomerFormData> = {}
 
-    if (!formData.cedula.trim()) {
-      newErrors.cedula = 'Cédula es requerida'
-    } else if (!/^\d{8,10}$/.test(formData.cedula.trim())) {
-      newErrors.cedula = 'Cédula debe tener entre 8 y 10 dígitos'
+    // Only validate cedula in create mode
+    if (!isEditMode) {
+      if (!formData.cedula.trim()) {
+        newErrors.cedula = 'Cédula es requerida'
+      } else if (!/^\d{8,10}$/.test(formData.cedula.trim())) {
+        newErrors.cedula = 'Cédula debe tener entre 8 y 10 dígitos'
+      }
     }
 
     if (!formData.name.trim()) {
@@ -69,15 +88,18 @@ export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    
+
     if (!validate()) return
 
     setLoading(true)
     setApiError(null)
 
     try {
-      const response = await fetch('/api/customers', {
-        method: 'POST',
+      const url = isEditMode ? `/api/customers/${customer?.id}` : '/api/customers'
+      const method = isEditMode ? 'PATCH' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
@@ -90,14 +112,14 @@ export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
         } else if (data.errors) {
           setApiError(data.errors.join(', '))
         } else {
-          setApiError(data.message || 'Error al crear el cliente')
+          setApiError(data.message || data.error || (isEditMode ? 'Error al actualizar el cliente' : 'Error al crear el cliente'))
         }
         return
       }
 
-      onSuccess()
+      onSuccess(data.data)
     } catch (err) {
-      console.error('Error creating customer:', err)
+      console.error(isEditMode ? 'Error updating customer:' : 'Error creating customer:', err)
       setApiError('Error de conexión. Intenta de nuevo.')
     } finally {
       setLoading(false)
@@ -123,10 +145,13 @@ export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
           inputMode="numeric"
           value={formData.cedula}
           onChange={handleChange}
-          className={errors.cedula ? 'input-error' : 'input'}
+          className={`${errors.cedula ? 'input-error' : 'input'} ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
           placeholder="1234567890"
-          disabled={loading}
+          disabled={loading || isEditMode}
         />
+        {isEditMode && (
+          <p className="text-xs text-gray-500 mt-1">La cédula no puede ser modificada</p>
+        )}
         {errors.cedula && <p className="error-message">{errors.cedula}</p>}
       </div>
 
@@ -228,7 +253,10 @@ export function CustomerForm({ onSuccess, onCancel }: CustomerFormProps) {
           disabled={loading}
           className="flex-1 btn-primary"
         >
-          {loading ? 'Guardando...' : 'Guardar Cliente'}
+          {loading
+            ? (isEditMode ? 'Actualizando...' : 'Guardando...')
+            : (isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente')
+          }
         </button>
       </div>
     </form>

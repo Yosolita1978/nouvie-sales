@@ -66,8 +66,110 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/customers/[id]
+ *
+ * Updates a customer's information
+ * Cedula cannot be changed (it's the unique identifier)
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+
+    // Check if customer exists
+    const existingCustomer = await prisma.customer.findUnique({
+      where: { id }
+    })
+
+    if (!existingCustomer) {
+      return NextResponse.json(
+        { success: false, error: 'Cliente no encontrado' },
+        { status: 404 }
+      )
+    }
+
+    // Validate required fields
+    const errors: string[] = []
+
+    if (body.name !== undefined && !body.name.trim()) {
+      errors.push('Nombre es requerido')
+    }
+
+    if (body.email !== undefined && body.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(body.email.trim())) {
+        errors.push('Email no es válido')
+      }
+    }
+
+    if (body.phone !== undefined && !body.phone.trim()) {
+      errors.push('Teléfono es requerido')
+    }
+
+    if (errors.length > 0) {
+      return NextResponse.json(
+        { success: false, errors },
+        { status: 400 }
+      )
+    }
+
+    // Build update data (only include fields that were provided)
+    const updateData: {
+      name?: string
+      email?: string | null
+      phone?: string
+      address?: string | null
+      city?: string | null
+    } = {}
+
+    if (body.name !== undefined) {
+      updateData.name = body.name.trim().toUpperCase()
+    }
+    if (body.email !== undefined) {
+      updateData.email = body.email.trim().toLowerCase() || null
+    }
+    if (body.phone !== undefined) {
+      updateData.phone = body.phone.trim()
+    }
+    if (body.address !== undefined) {
+      updateData.address = body.address.trim() || null
+    }
+    if (body.city !== undefined) {
+      updateData.city = body.city.trim() || null
+    }
+
+    // Update customer
+    const updatedCustomer = await prisma.customer.update({
+      where: { id },
+      data: updateData
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: updatedCustomer,
+      message: 'Cliente actualizado exitosamente'
+    })
+
+  } catch (error) {
+    console.error('Error updating customer:', error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Error al actualizar el cliente',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * DELETE /api/customers/[id]
- * 
+ *
  * Deletes a customer
  * Blocked if customer has any orders
  */

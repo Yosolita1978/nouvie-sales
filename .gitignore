@@ -38,6 +38,7 @@ claude.md
 
 # vercel
 .vercel
+.claude/
 
 # typescript
 *.tsbuildinfo

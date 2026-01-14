@@ -25,6 +25,7 @@ export function CustomerSelect({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -106,6 +107,17 @@ export function CustomerSelect({
     setIsOpen(false)
   }
 
+  function handleOpenEditModal() {
+    setIsEditModalOpen(true)
+  }
+
+  function handleCustomerUpdated(updatedCustomer?: CustomerListItem) {
+    setIsEditModalOpen(false)
+    if (updatedCustomer) {
+      onSelect(updatedCustomer)
+    }
+  }
+
   async function handleCustomerCreated() {
     setIsModalOpen(false)
     
@@ -130,36 +142,62 @@ export function CustomerSelect({
 
   if (selected) {
     return (
-      <div className="card p-4">
-        <div className="flex justify-between items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-lg text-gray-900 truncate">
-              {selected.name}
-            </p>
-            <div className="mt-2 space-y-1 text-sm text-gray-600">
-              <p>
-                <span className="font-medium">Cédula:</span> {selected.cedula}
+      <>
+        <div className="card p-4">
+          <div className="flex justify-between items-start gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-lg text-gray-900 truncate">
+                {selected.name}
               </p>
-              <p>
-                <span className="font-medium">Teléfono:</span> {selected.phone}
-              </p>
-              {selected.city && (
+              <div className="mt-2 space-y-1 text-sm text-gray-600">
                 <p>
-                  <span className="font-medium">Ciudad:</span> {selected.city}
+                  <span className="font-medium">Cédula:</span> {selected.cedula}
                 </p>
-              )}
+                <p>
+                  <span className="font-medium">Teléfono:</span> {selected.phone}
+                </p>
+                {selected.city && (
+                  <p>
+                    <span className="font-medium">Ciudad:</span> {selected.city}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenEditModal}
+                disabled={disabled}
+                className="px-4 py-2 text-sm font-medium text-gray-600 border-2 border-gray-300 rounded-lg hover:bg-gray-100 hover:border-gray-400 active:bg-gray-200 transition-colors"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={handleChange}
+                disabled={disabled}
+                className="px-4 py-2 text-sm font-medium text-nouvie-blue border-2 border-nouvie-blue rounded-lg hover:bg-nouvie-blue hover:text-white active:bg-nouvie-navy transition-colors"
+              >
+                Cambiar
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleChange}
-            disabled={disabled}
-            className="flex-shrink-0 px-4 py-2 text-sm font-medium text-nouvie-blue border-2 border-nouvie-blue rounded-lg hover:bg-nouvie-blue hover:text-white active:bg-nouvie-navy transition-colors"
-          >
-            Cambiar
-          </button>
         </div>
-      </div>
+
+        {/* Edit Customer Modal */}
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          title="Editar Cliente"
+        >
+          <CustomerForm
+            customer={selected}
+            mode="edit"
+            onSuccess={handleCustomerUpdated}
+            onCancel={() => setIsEditModalOpen(false)}
+          />
+        </Modal>
+      </>
     )
   }
 

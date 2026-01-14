@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatCOP, formatDate } from '@/lib/utils'
-import { ConfirmDialog } from '@/components/ui'
+import { ConfirmDialog, Modal } from '@/components/ui'
+import { CustomerForm } from '@/components/customers'
+import type { CustomerListItem } from '@/types'
 
 interface CustomerOrder {
   id: string
@@ -51,6 +53,7 @@ export default function CustomerDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const fetchCustomer = useCallback(async () => {
     setLoading(true)
@@ -115,6 +118,20 @@ export default function CustomerDetailPage() {
   function handleCloseDialog() {
     setShowDeleteDialog(false)
     setDeleteError(null)
+  }
+
+  function handleCustomerUpdated(updatedCustomer?: CustomerListItem) {
+    setIsEditModalOpen(false)
+    if (updatedCustomer && customer) {
+      setCustomer({
+        ...customer,
+        name: updatedCustomer.name,
+        email: updatedCustomer.email,
+        phone: updatedCustomer.phone,
+        address: updatedCustomer.address,
+        city: updatedCustomer.city
+      })
+    }
   }
 
   if (loading) {
@@ -195,13 +212,22 @@ export default function CustomerDetailPage() {
             </button>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{customer.name}</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowDeleteDialog(true)}
-            className="flex-shrink-0 px-4 py-2 text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors font-medium"
-          >
-            Eliminar
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-4 py-2 text-nouvie-blue hover:bg-nouvie-pale-blue/30 active:bg-nouvie-pale-blue/50 rounded-lg transition-colors font-medium"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteDialog(true)}
+              className="px-4 py-2 text-red-600 hover:bg-red-50 active:bg-red-100 rounded-lg transition-colors font-medium"
+            >
+              Eliminar
+            </button>
+          </div>
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
@@ -327,6 +353,20 @@ export default function CustomerDetailPage() {
         variant={canDelete ? 'danger' : 'default'}
         loading={deleting}
       />
+
+      {/* Edit Customer Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Editar Cliente"
+      >
+        <CustomerForm
+          customer={customer as CustomerListItem}
+          mode="edit"
+          onSuccess={handleCustomerUpdated}
+          onCancel={() => setIsEditModalOpen(false)}
+        />
+      </Modal>
     </div>
   )
 }
