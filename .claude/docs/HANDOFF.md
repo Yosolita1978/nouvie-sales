@@ -2,8 +2,10 @@
 
 ## Acceso al Sistema
 
-**URL**: [agregar URL de producción]
-**Usuario**: [agregar credenciales de Mariana]
+**URL**: https://nouvie-sales.vercel.app
+**Dashboard**: https://nouvie-sales.vercel.app/dashboard
+
+**Credenciales**: Ver archivo privado o contactar al desarrollador
 
 ## Qué Puede Hacer
 

@@ -320,28 +320,40 @@ async function main() {
   // ----------------------------------------
   console.log('\n👤 STEP 1: Creating admin user...')
   
-  const hashedPassword = await bcrypt.hash('admin123', 10)
-  
+  // Read admin credentials from environment variables
+  const adminEmail = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+  const adminName = process.env.ADMIN_NAME || 'Admin'
+
+  if (!adminEmail || !adminPassword) {
+    console.error('   ❌ Missing ADMIN_EMAIL or ADMIN_PASSWORD environment variables')
+    console.error('   Add these to your .env file:')
+    console.error('   ADMIN_EMAIL=your-email@example.com')
+    console.error('   ADMIN_PASSWORD=your-secure-password')
+    process.exit(1)
+  }
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10)
+
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@nouvie.com' },
+    where: { email: adminEmail },
     update: {
       password: hashedPassword,
-      name: 'Admin Nouvie',
+      name: adminName,
       role: 'admin',
       active: true,
     },
     create: {
-      email: 'admin@nouvie.com',
+      email: adminEmail,
       password: hashedPassword,
-      name: 'Admin Nouvie',
+      name: adminName,
       role: 'admin',
       active: true,
     },
   })
-  
+
   console.log('   ✅ Admin user ready')
-  console.log('   📧 Email: admin@nouvie.com')
-  console.log('   🔑 Password: admin123')
+  console.log(`   📧 Email: ${adminEmail}`)
 
   // ----------------------------------------
   // STEP 2: Load All Data Files
@@ -477,8 +489,8 @@ async function main() {
   console.log(`   👥 Customers: ${customersCreated}`)
   console.log(`   📦 Products: ${productsCreated}`)
   console.log('\n🔐 Login credentials:')
-  console.log('   Email: admin@nouvie.com')
-  console.log('   Password: admin123')
+  console.log(`   Email: ${process.env.ADMIN_EMAIL}`)
+  console.log('   Password: (from ADMIN_PASSWORD env var)')
   console.log('')
 }
 

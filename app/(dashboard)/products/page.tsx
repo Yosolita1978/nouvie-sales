@@ -88,6 +88,32 @@ export default function ProductsPage() {
 
   const hasStockAlerts = outOfStockProducts.length > 0 || lowStockProducts.length > 0
 
+  // Helper function to group products by category and format the summary
+  const formatCategorySummary = (products: Product[]): string => {
+    const categoryCount: Record<string, number> = {}
+    products.forEach((p) => {
+      const cat = p.category || 'Sin categoría'
+      categoryCount[cat] = (categoryCount[cat] || 0) + 1
+    })
+
+    const entries = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])
+
+    if (entries.length === 1) {
+      // All products are from one category
+      const [category, count] = entries[0]
+      return `${count} ${category.toUpperCase()}`
+    }
+
+    // Multiple categories - show top 2 and summarize rest
+    const formatted = entries.slice(0, 2).map(([cat, count]) => `${count} ${cat}`).join(', ')
+    const remaining = entries.slice(2).reduce((sum, [, count]) => sum + count, 0)
+
+    if (remaining > 0) {
+      return `${formatted} y ${remaining} más`
+    }
+    return formatted
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -131,10 +157,10 @@ export default function ProductsPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-red-800">
-                    🚨 {outOfStockProducts.length} Producto{outOfStockProducts.length !== 1 ? 's' : ''} AGOTADO{outOfStockProducts.length !== 1 ? 'S' : ''}
+                    🚨 {formatCategorySummary(outOfStockProducts)} AGOTADO{outOfStockProducts.length !== 1 ? 'S' : ''}
                   </h3>
                   <p className="text-red-600 mt-1">
-                    Estos productos no tienen stock y no se pueden vender
+                    {outOfStockProducts.length} producto{outOfStockProducts.length !== 1 ? 's' : ''} sin stock - no se pueden vender
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {outOfStockProducts.slice(0, 6).map((product) => (
@@ -169,10 +195,10 @@ export default function ProductsPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-amber-800">
-                    ⚠️ {lowStockProducts.length} Producto{lowStockProducts.length !== 1 ? 's' : ''} con Stock Bajo
+                    ⚠️ {formatCategorySummary(lowStockProducts)} con Stock Bajo
                   </h3>
                   <p className="text-amber-700 mt-1">
-                    Estos productos están por debajo del stock mínimo recomendado
+                    {lowStockProducts.length} producto{lowStockProducts.length !== 1 ? 's' : ''} por debajo del stock mínimo
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {lowStockProducts.slice(0, 6).map((product) => (
