@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { findPromoMixByName } from '@/lib/promomix-config'
+import { validatePromoMixOrder } from '@/lib/promomix-utils'
 
 const TAX_RATE = 0.19 // 19% IVA
 
@@ -16,6 +18,7 @@ interface CreateOrderBody {
   customerId: string
   items: OrderItemInput[]
   paymentMethod: 'cash' | 'nequi' | 'bank' | 'link'
+  orderType?: 'normal' | 'promomix'
   notes?: string
 }
 
@@ -152,6 +155,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: CreateOrderBody = await request.json()
     const { customerId, items, paymentMethod, notes } = body
+    const orderType = body.orderType || 'normal'
 
     // Validate required fields
     const errors: string[] = []
@@ -214,6 +218,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // PromoMix: validate eligibility and override prices with promo prices
+    let finalItems = items
+    if (orderType === 'promomix') {
+      // Map each DB product to its PromoMix config entry by name
+      const promoItems: { productId: string; quantity: number }[] = []
+      for (const item of items) {
+        const product = products.find(p => p.id === item.productId)
+        if (!product) continue
+        const promoProduct = findPromoMixByName(product.name)
+        if (!promoProduct) {
+          return NextResponse.json(
+            { success: false, error: `${product.name} no es elegible para PromoMix` },
+            { status: 400 }
+          )
+        }
+        promoItems.push({ productId: promoProduct.id, quantity: item.quantity })
+      }
+
+      // Validate minimum $300.000
+      const validation = validatePromoMixOrder(promoItems)
+      if (!validation.valid) {
+        return NextResponse.json(
+          { success: false, error: validation.error },
+          { status: 400 }
+        )
+      }
+
+      // Override unit prices with promo prices from config
+      finalItems = items.map(item => {
+        const product = products.find(p => p.id === item.productId)
+        const promoProduct = product ? findPromoMixByName(product.name) : null
+        return {
+          ...item,
+          unitPrice: promoProduct ? promoProduct.promoPrice : item.unitPrice
+        }
+      })
+    }
+
     // Generate order number
     const year = new Date().getFullYear()
     const lastOrder = await prisma.order.findFirst({
@@ -232,7 +274,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     let subtotal = 0
-    for (const item of items) {
+    for (const item of finalItems) {
       subtotal += item.unitPrice * item.quantity
     }
     const tax = Math.round(subtotal * TAX_RATE)
@@ -250,9 +292,10 @@ export async function POST(request: NextRequest) {
           paymentMethod,
           paymentStatus: 'pending',
           shippingStatus: 'preparing',
+          orderType,
           notes: notes || null,
           items: {
-            create: items.map(item => ({
+            create: finalItems.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
               unitPrice: item.unitPrice,

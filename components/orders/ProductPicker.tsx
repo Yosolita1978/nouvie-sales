@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Product } from '@/types'
+import { findPromoMixByName } from '@/lib/promomix-config'
 
 interface OrderItem {
   productId: string
@@ -16,13 +17,16 @@ interface ProductPickerProps {
   onItemsChange: (items: OrderItem[]) => void
   items: OrderItem[]
   disabled?: boolean
+  orderType?: 'normal' | 'promomix'
 }
 
 export function ProductPicker({
   onItemsChange,
   items,
-  disabled = false
+  disabled = false,
+  orderType = 'normal'
 }: ProductPickerProps) {
+  const isPromoMix = orderType === 'promomix'
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -62,6 +66,11 @@ export function ProductPicker({
   useEffect(() => {
     let filtered = allProducts
 
+    // PromoMix: only show eligible products
+    if (isPromoMix) {
+      filtered = filtered.filter(p => findPromoMixByName(p.name) !== null)
+    }
+
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(p => p.category === selectedCategory)
     }
@@ -74,7 +83,7 @@ export function ProductPicker({
     }
 
     setFilteredProducts(filtered)
-  }, [allProducts, selectedCategory, search])
+  }, [allProducts, selectedCategory, search, isPromoMix])
 
   useEffect(() => {
     if (justAdded) {
@@ -88,8 +97,17 @@ export function ProductPicker({
     return item?.quantity || 0
   }
 
+  function getDisplayPrice(product: Product): number {
+    if (isPromoMix) {
+      const promo = findPromoMixByName(product.name)
+      if (promo) return promo.promoPrice
+    }
+    return product.price
+  }
+
   function handleAdd(product: Product) {
     setJustAdded(product.id)
+    const price = getDisplayPrice(product)
 
     const existingIndex = items.findIndex(i => i.productId === product.id)
 
@@ -107,8 +125,8 @@ export function ProductPicker({
         productName: product.name,
         unit: product.unit,
         quantity: 1,
-        unitPrice: product.price,
-        subtotal: product.price
+        unitPrice: price,
+        subtotal: price
       }
       onItemsChange([...items, newItem])
     }
@@ -298,9 +316,20 @@ export function ProductPicker({
                     </span>
                   </div>
                   <div className="mt-2 flex items-center gap-3 text-sm flex-wrap">
-                    <span className="font-bold text-nouvie-blue text-base">
-                      {formatCOP(product.price)}
-                    </span>
+                    {isPromoMix && findPromoMixByName(product.name) ? (
+                      <>
+                        <span className="font-bold text-amber-600 text-base">
+                          {formatCOP(findPromoMixByName(product.name)!.promoPrice)}
+                        </span>
+                        <span className="text-gray-400 line-through text-xs">
+                          {formatCOP(product.price)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="font-bold text-nouvie-blue text-base">
+                        {formatCOP(product.price)}
+                      </span>
+                    )}
                     <span className="text-gray-500">
                       por {product.unit}
                     </span>
@@ -353,10 +382,10 @@ export function ProductPicker({
               {isInCart && (
                 <div className="mt-3 pt-3 border-t border-nouvie-blue/20 flex justify-between items-center">
                   <span className="text-gray-600">
-                    {quantity} × {formatCOP(product.price)}
+                    {quantity} × {formatCOP(getDisplayPrice(product))}
                   </span>
-                  <span className="font-bold text-nouvie-blue text-lg">
-                    {formatCOP(quantity * product.price)}
+                  <span className={`font-bold text-lg ${isPromoMix ? 'text-amber-600' : 'text-nouvie-blue'}`}>
+                    {formatCOP(quantity * getDisplayPrice(product))}
                   </span>
                 </div>
               )}

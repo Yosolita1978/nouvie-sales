@@ -397,6 +397,11 @@ export default function OrdersPage() {
                     <h3 className="font-semibold text-lg text-gray-900">
                       {order.orderNumber}
                     </h3>
+                    {order.orderType === 'promomix' && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
+                        PROMOMIX
+                      </span>
+                    )}
                     {getPaymentStatusBadge(order.paymentStatus)}
                     {getShippingStatusBadge(order.shippingStatus)}
                   </div>

@@ -5,6 +5,7 @@ import { CustomerSelect } from '@/components/customers/CustomerSelect'
 import { ProductPicker } from './ProductPicker'
 import { OrderSuccess } from './OrderSuccess'
 import type { CustomerListItem } from '@/types'
+import { PROMOMIX_MINIMUM } from '@/lib/promomix-config'
 
 interface OrderItem {
   productId: string
@@ -26,6 +27,7 @@ interface SuccessData {
 }
 
 type PaymentMethodType = 'cash' | 'nequi' | 'bank' | 'link'
+type OrderType = 'normal' | 'promomix'
 
 const PAYMENT_METHODS: { value: PaymentMethodType; label: string; icon: string }[] = [
   { value: 'cash', label: 'Efectivo', icon: '💵' },
@@ -38,6 +40,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
   const [cart, setCart] = useState<OrderItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash')
+  const [orderType, setOrderType] = useState<OrderType>('normal')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +51,11 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const total = subtotal + iva
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
+  const isPromoMix = orderType === 'promomix'
+  const promoMixRemaining = isPromoMix ? Math.max(0, PROMOMIX_MINIMUM - subtotal) : 0
+  const promoMixProgress = isPromoMix ? Math.min(100, (subtotal / PROMOMIX_MINIMUM) * 100) : 0
+  const promoMixValid = !isPromoMix || subtotal >= PROMOMIX_MINIMUM
+
   function formatCOP(amount: number): string {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -55,6 +63,14 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
+  }
+
+  function handleOrderTypeChange(type: OrderType) {
+    if (type !== orderType) {
+      setOrderType(type)
+      setCart([])
+      setError(null)
+    }
   }
 
   async function handleSubmit(e?: React.FormEvent) {
@@ -67,6 +83,11 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
 
     if (cart.length === 0) {
       setError('Agrega al menos un producto')
+      return
+    }
+
+    if (isPromoMix && !promoMixValid) {
+      setError(`El PromoMix requiere mínimo $300.000. Faltan ${formatCOP(promoMixRemaining)}`)
       return
     }
 
@@ -85,6 +106,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             unitPrice: item.unitPrice
           })),
           paymentMethod,
+          orderType,
           notes: notes.trim() || undefined
         })
       })
@@ -122,7 +144,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
     )
   }
 
-  const canSubmit = selectedCustomer && cart.length > 0 && !loading
+  const canSubmit = selectedCustomer && cart.length > 0 && !loading && promoMixValid
   const showMobileBar = cart.length > 0
 
   return (
@@ -131,6 +153,69 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             {error}
+          </div>
+        )}
+
+        {/* Order Type Toggle */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tipo de Pedido
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleOrderTypeChange('normal')}
+              disabled={loading}
+              className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                orderType === 'normal'
+                  ? 'bg-nouvie-blue text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+              } disabled:opacity-50`}
+            >
+              Normal
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOrderTypeChange('promomix')}
+              disabled={loading}
+              className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                orderType === 'promomix'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+              } disabled:opacity-50`}
+            >
+              PromoMix 2026
+            </button>
+          </div>
+        </div>
+
+        {/* PromoMix Budget Tracker */}
+        {isPromoMix && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-semibold text-amber-800">PromoMix 2026</span>
+              <span className={`text-sm font-bold ${promoMixValid ? 'text-green-600' : 'text-amber-700'}`}>
+                {formatCOP(subtotal)} / {formatCOP(PROMOMIX_MINIMUM)}
+              </span>
+            </div>
+            <div className="w-full bg-amber-200 rounded-full h-3">
+              <div
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  promoMixValid ? 'bg-green-500' : 'bg-amber-500'
+                }`}
+                style={{ width: `${promoMixProgress}%` }}
+              />
+            </div>
+            {!promoMixValid && cart.length > 0 && (
+              <p className="text-xs text-amber-700">
+                Faltan {formatCOP(promoMixRemaining)} para el mínimo
+              </p>
+            )}
+            {promoMixValid && cart.length > 0 && (
+              <p className="text-xs text-green-600 font-medium">
+                Mínimo alcanzado
+              </p>
+            )}
           </div>
         )}
 
@@ -153,6 +238,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             items={cart}
             onItemsChange={setCart}
             disabled={loading}
+            orderType={orderType}
           />
         </div>
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { findPromoMixByName } from '@/lib/promomix-config'
 
 const styles = StyleSheet.create({
   page: {
@@ -173,6 +174,45 @@ const styles = StyleSheet.create({
     borderTopColor: '#e5e7eb',
     paddingTop: 10,
   },
+  promoBadge: {
+    backgroundColor: '#f59e0b',
+    color: '#ffffff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    fontSize: 10,
+    fontWeight: 'bold',
+    alignSelf: 'flex-end',
+    marginBottom: 4,
+  },
+  promoOriginalPrice: {
+    fontSize: 8,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  savingsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    width: 200,
+  },
+  savingsLabel: {
+    flex: 1,
+    color: '#16a34a',
+    fontSize: 10,
+  },
+  savingsValue: {
+    width: 100,
+    textAlign: 'right',
+    color: '#16a34a',
+    fontSize: 10,
+  },
+  shippingNote: {
+    marginTop: 12,
+    fontSize: 9,
+    color: '#92400e',
+    textAlign: 'right',
+  },
 })
 
 function formatCOP(amount: number): string {
@@ -194,6 +234,7 @@ function formatDate(date: Date): string {
 
 export interface OrderPdfData {
   orderNumber: string
+  orderType: string
   createdAt: Date
   subtotal: number
   tax: number
@@ -222,6 +263,16 @@ interface OrderPdfDocumentProps {
 }
 
 export function OrderPdfDocument({ order }: OrderPdfDocumentProps) {
+  const isPromoMix = order.orderType === 'promomix'
+
+  const totalSavings = isPromoMix
+    ? order.items.reduce((sum, item) => {
+        const promo = findPromoMixByName(item.product.name)
+        if (promo) return sum + (promo.basePrice - item.unitPrice) * item.quantity
+        return sum
+      }, 0)
+    : 0
+
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
@@ -232,6 +283,7 @@ export function OrderPdfDocument({ order }: OrderPdfDocumentProps) {
             <Text style={styles.tagline}>The Gift From Nature</Text>
           </View>
           <View style={styles.headerRight}>
+            {isPromoMix && <Text style={styles.promoBadge}>PROMOMIX 2026</Text>}
             <Text style={styles.title}>PEDIDO</Text>
             <Text style={styles.orderNumber}>{order.orderNumber}</Text>
             <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
@@ -279,14 +331,26 @@ export function OrderPdfDocument({ order }: OrderPdfDocumentProps) {
               <Text style={[styles.tableHeaderCell, styles.colSubtotal]}>Subtotal</Text>
             </View>
             {/* Table Rows */}
-            {order.items.map((item, index) => (
-              <View style={styles.tableRow} key={index}>
-                <Text style={styles.colProduct}>{item.product.name}</Text>
-                <Text style={styles.colQty}>{item.quantity} {item.product.unit}</Text>
-                <Text style={styles.colPrice}>{formatCOP(item.unitPrice)}</Text>
-                <Text style={styles.colSubtotal}>{formatCOP(item.subtotal)}</Text>
-              </View>
-            ))}
+            {order.items.map((item, index) => {
+              const promoProduct = isPromoMix ? findPromoMixByName(item.product.name) : null
+              const hasDiscount = promoProduct && promoProduct.basePrice > item.unitPrice
+
+              return (
+                <View style={styles.tableRow} key={index}>
+                  <View style={styles.colProduct}>
+                    <Text>{item.product.name}</Text>
+                    {hasDiscount && (
+                      <Text style={styles.promoOriginalPrice}>
+                        (Antes: {formatCOP(promoProduct.basePrice)})
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.colQty}>{item.quantity} {item.product.unit}</Text>
+                  <Text style={styles.colPrice}>{formatCOP(item.unitPrice)}</Text>
+                  <Text style={styles.colSubtotal}>{formatCOP(item.subtotal)}</Text>
+                </View>
+              )
+            })}
           </View>
         </View>
 
@@ -304,6 +368,15 @@ export function OrderPdfDocument({ order }: OrderPdfDocumentProps) {
             <Text style={styles.grandTotalLabel}>TOTAL:</Text>
             <Text style={styles.grandTotalValue}>{formatCOP(order.total)}</Text>
           </View>
+          {isPromoMix && totalSavings > 0 && (
+            <View style={styles.savingsRow}>
+              <Text style={styles.savingsLabel}>Ahorro PromoMix:</Text>
+              <Text style={styles.savingsValue}>-{formatCOP(totalSavings)}</Text>
+            </View>
+          )}
+          {isPromoMix && (
+            <Text style={styles.shippingNote}>* Envío no incluido</Text>
+          )}
         </View>
 
         {/* Notes */}

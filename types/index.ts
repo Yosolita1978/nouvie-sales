@@ -59,6 +59,7 @@ export interface User {
     shippingStatus: string  // "preparing", "shipped", "delivered"
     shippingDate: Date | null
     deliveryDate: Date | null
+    orderType: string       // "normal" | "promomix"
     invoiceNumber: string | null
     notes: string | null
     createdAt: Date

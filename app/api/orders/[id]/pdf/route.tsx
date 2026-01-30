@@ -31,6 +31,7 @@ export async function GET(
 
     const orderData = {
       orderNumber: order.orderNumber,
+      orderType: order.orderType,
       createdAt: order.createdAt,
       subtotal: Number(order.subtotal),
       tax: Number(order.tax),

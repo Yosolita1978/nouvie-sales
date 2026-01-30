@@ -97,6 +97,9 @@ model Order {
   shippingDate   DateTime?
   deliveryDate   DateTime?
   
+  // Order type
+  orderType     String    @default("normal") // "normal" | "promomix"
+
   // Additional
   invoiceNumber String?   @unique
   notes         String?   @db.Text
@@ -113,6 +116,7 @@ model Order {
   @@index([orderDate])
   @@index([paymentStatus])
   @@index([shippingStatus])
+  @@index([orderType])
   @@map("orders")
 }
 

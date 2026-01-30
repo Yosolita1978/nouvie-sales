@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ConfirmDialog } from '@/components/ui'
+import { findPromoMixByName } from '@/lib/promomix-config'
 
 interface OrderItem {
   id: string
@@ -26,6 +27,7 @@ interface Order {
   tax: number
   total: number
   paymentMethod: string
+  orderType: string
   invoiceNumber: string | null
   notes: string | null
   createdAt: string
@@ -305,9 +307,16 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               </svg>
               Pedidos
             </Link>
-            <h1 className="text-xl sm:text-2xl font-bold text-nouvie-navy">
-              {order.orderNumber}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-nouvie-navy">
+                {order.orderNumber}
+              </h1>
+              {order.orderType === 'promomix' && (
+                <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
+                  PROMOMIX 2026
+                </span>
+              )}
+            </div>
             <p className="text-gray-500 text-sm mt-1" suppressHydrationWarning>
               {formatDate(order.createdAt)}
             </p>
@@ -491,17 +500,31 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <h2 className="font-semibold text-gray-900 mb-4">Productos</h2>
         <div className="space-y-3">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
-              <div className="flex-1 min-w-0 pr-4">
-                <p className="font-medium text-gray-900">{item.product.name}</p>
-                <p className="text-sm text-gray-500">
-                  {item.quantity} {item.product.unit} × {formatCOP(item.unitPrice)}
+          {order.items.map((item) => {
+            const promoProduct = order.orderType === 'promomix' ? findPromoMixByName(item.product.name) : null
+            const hasDiscount = promoProduct && promoProduct.basePrice > item.unitPrice
+
+            return (
+              <div key={item.id} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="font-medium text-gray-900">{item.product.name}</p>
+                  <div className="text-sm text-gray-500 flex items-center gap-2 flex-wrap">
+                    <span>
+                      {item.quantity} {item.product.unit} × {formatCOP(item.unitPrice)}
+                    </span>
+                    {hasDiscount && (
+                      <span className="text-gray-400 line-through text-xs">
+                        {formatCOP(promoProduct.basePrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <p className={`font-semibold text-lg flex-shrink-0 ${order.orderType === 'promomix' ? 'text-amber-600' : 'text-nouvie-blue'}`}>
+                  {formatCOP(item.subtotal)}
                 </p>
               </div>
-              <p className="font-semibold text-nouvie-blue text-lg flex-shrink-0">{formatCOP(item.subtotal)}</p>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         <div className="mt-4 pt-4 border-t-2 border-gray-200 space-y-2">
@@ -513,10 +536,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span className="text-gray-600">IVA (19%)</span>
             <span>{formatCOP(order.tax)}</span>
           </div>
-          <div className="flex justify-between text-xl font-bold text-nouvie-blue pt-2">
+          <div className={`flex justify-between text-xl font-bold pt-2 ${order.orderType === 'promomix' ? 'text-amber-600' : 'text-nouvie-blue'}`}>
             <span>Total</span>
             <span>{formatCOP(order.total)}</span>
           </div>
+          {order.orderType === 'promomix' && (() => {
+            const totalSavings = order.items.reduce((sum, item) => {
+              const promo = findPromoMixByName(item.product.name)
+              if (promo) {
+                return sum + (promo.basePrice - item.unitPrice) * item.quantity
+              }
+              return sum
+            }, 0)
+            if (totalSavings > 0) {
+              return (
+                <div className="flex justify-between text-sm pt-1">
+                  <span className="text-green-600 font-medium">Ahorro PromoMix</span>
+                  <span className="text-green-600 font-medium">-{formatCOP(totalSavings)}</span>
+                </div>
+              )
+            }
+            return null
+          })()}
         </div>
       </div>
 
