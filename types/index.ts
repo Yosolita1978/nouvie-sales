@@ -175,15 +175,12 @@ export interface User {
   // Shipping status
   export type ShippingStatus = 'preparing' | 'shipped' | 'delivered'
   
-  // Product categories (from your real data)
-  export type ProductCategory = 
-    | 'Hogar' 
-    | 'Institucional' 
-    | 'Productos de Limpieza'
-    | 'Envases y Empaques'
-    | 'Merchandising'
-    | 'Etiquetas'
-    | 'Otros'
+  // Product categories (2026 catalog)
+  export type ProductCategory =
+    | 'Hogar'
+    | 'Capilar'
+    | 'Institucional'
+    | 'Ordeño'
 
 // ============================================
 // API RESPONSE TYPES FOR CUSTOMERS

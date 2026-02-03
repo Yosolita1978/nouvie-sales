@@ -19,11 +19,10 @@ interface ProductFormProps {
 
 const CATEGORIES = [
   { value: '', label: 'Seleccionar categoría...' },
-  { value: 'Productos', label: 'Productos' },
-  { value: 'Envases', label: 'Envases' },
-  { value: 'Etiquetas', label: 'Etiquetas' },
-  { value: 'Merchandising', label: 'Merchandising' },
-  { value: 'Otros', label: 'Otros' }
+  { value: 'Hogar', label: 'Hogar' },
+  { value: 'Capilar', label: 'Capilar' },
+  { value: 'Institucional', label: 'Institucional' },
+  { value: 'Ordeño', label: 'Ordeño' },
 ]
 
 const UNITS = [

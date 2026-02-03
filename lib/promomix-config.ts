@@ -6,8 +6,6 @@
 
 // Business rules
 export const PROMOMIX_MINIMUM = 300000     // $300.000 COP minimum at promo prices
-export const HOGAR_DISCOUNT = 0.20         // 20% off PVP+IVA
-export const CAPILAR_DISCOUNT = 0.40       // 40% off PVP+IVA
 export const PROMOMIX_YEAR = 2026
 
 // ============================================
@@ -21,37 +19,39 @@ export type PromoMixProduct = {
   name: string
   category: PromoMixCategory
   size: string
-  basePrice: number   // PVP+IVA (regular price)
-  promoPrice: number  // Discounted price
+  basePrice: number   // PVP+IVA (precio regular)
+  promoPrice: number  // PVC+IVA (precio kit)
 }
 
 // ============================================
-// HOGAR PRODUCTS (20% discount)
+// HOGAR PRODUCTS — Precios especiales
 // 5 products
 // ============================================
 
 export const HOGAR_PRODUCTS: PromoMixProduct[] = [
-  { id: 'desengrasante-multiusos', name: 'Desengrasante Multiusos', category: 'hogar', size: '250 ml', basePrice: 55200, promoPrice: 44160 },
-  { id: 'detergente-lavavajillas', name: 'Detergente Lavavajillas', category: 'hogar', size: '250 ml', basePrice: 55200, promoPrice: 44160 },
-  { id: 'limpia-vidrios', name: 'Limpia Vidrios', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 41400 },
-  { id: 'limpia-pisos', name: 'Limpia Pisos', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 41400 },
-  { id: 'lustra-muebles', name: 'Lustra Muebles', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 41400 },
+  { id: 'desengrasante-multiusos', name: 'Desengrasante Multiusos', category: 'hogar', size: '250 ml', basePrice: 55200, promoPrice: 52550 },
+  { id: 'detergente-neutro', name: 'Detergente Neutro', category: 'hogar', size: '250 ml', basePrice: 55200, promoPrice: 52550 },
+  { id: 'limpia-vidrios', name: 'Limpia Vidrios', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 49266 },
+  { id: 'limpia-pisos', name: 'Limpia Pisos', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 49266 },
+  { id: 'lustra-muebles', name: 'Lustra Muebles', category: 'hogar', size: '250 ml', basePrice: 51750, promoPrice: 49266 },
 ]
 
 // ============================================
-// CAPILAR PRODUCTS (40% discount)
+// CAPILAR PRODUCTS — Precios especiales
 // 8 products — names match DB exactly
 // ============================================
+// TODO: Mascarilla Revitalizante is MISSING from client's price list.
+//       Confirm with client if this product should exist or was intentionally removed.
 
 export const CAPILAR_PRODUCTS: PromoMixProduct[] = [
-  { id: 'shampoo-suave-y-liso', name: 'Shampoo Suave y Liso (237 ml)', category: 'capilar', size: '237 ml', basePrice: 51750, promoPrice: 31050 },
-  { id: 'mascarilla-suave-y-liso', name: 'Mascarilla Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 69000, promoPrice: 41400 },
-  { id: 'locion-suave-y-liso', name: 'Loción Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 60950, promoPrice: 36570 },
-  { id: 'shampoo-revitalizante', name: 'Shampoo Revitalizante (237 ml)', category: 'capilar', size: '237 ml', basePrice: 51750, promoPrice: 31050 },
-  { id: 'mascarilla-reparacion-intensa', name: 'Mascarilla Reparación intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 69000, promoPrice: 41400 },
-  { id: 'locion-revitalizante', name: 'Loción Revitalizante (177 ml)', category: 'capilar', size: '177 ml', basePrice: 60950, promoPrice: 36570 },
-  { id: 'shampoo-reparacion-intensa', name: 'Shampoo Reparación intensa (237 ml)', category: 'capilar', size: '237 ml', basePrice: 51750, promoPrice: 31050 },
-  { id: 'locion-reparacion-intensa', name: 'Loción Reparación intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 60950, promoPrice: 36570 },
+  { id: 'shampoo-suave-y-liso', name: 'Shampoo Suave y Liso (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
+  { id: 'mascarilla-suave-y-liso', name: 'Mascarilla Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 62000, promoPrice: 44268 },
+  { id: 'locion-suave-y-liso', name: 'Loción Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
+  { id: 'shampoo-revitalizante', name: 'Shampoo Revitalizante (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
+  { id: 'mascarilla-reparacion-intensa', name: 'Mascarilla Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 62000, promoPrice: 44268 },
+  { id: 'locion-revitalizante', name: 'Loción Revitalizante (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
+  { id: 'shampoo-reparacion-intensa', name: 'Shampoo Reparación Intensa (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
+  { id: 'locion-reparacion-intensa', name: 'Loción Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
 ]
 
 // ============================================
