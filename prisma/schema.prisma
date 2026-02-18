@@ -140,3 +140,15 @@ model OrderItem {
   @@index([productId])
   @@map("order_items")
 }
+
+// ============================================
+// EXCHANGE RATE - Updated monthly
+// ============================================
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  currency  String   @unique // e.g., "USD"
+  rate      Decimal  @db.Decimal(10, 2) // COP per 1 unit of currency
+  updatedAt DateTime @updatedAt
+
+  @@map("exchange_rates")
+}
