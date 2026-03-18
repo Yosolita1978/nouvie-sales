@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+interface OrderItemInput {
+  productId: string
+  quantity: number
+  unitPrice: number
+}
+
 interface UpdateOrderBody {
+  // Status updates (existing)
   paymentStatus?: 'pending' | 'partial' | 'paid'
   shippingStatus?: 'preparing' | 'shipped' | 'delivered'
   invoiceNumber?: string | null
+  // Full order edit (new)
+  customerId?: string
+  items?: OrderItemInput[]
+  paymentMethod?: string
+  orderType?: string
+  discount?: number
+  notes?: string | null
 }
+
+const TAX_RATE = 0.19
 
 /**
  * GET /api/orders/[id]
- * 
+ *
  * Fetches a single order with customer and items
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -38,11 +54,11 @@ export async function GET(
       )
     }
 
-    // Convert Decimals to numbers
     const serializedOrder = {
       ...order,
       subtotal: Number(order.subtotal),
       tax: Number(order.tax),
+      discount: Number(order.discount),
       total: Number(order.total),
       items: order.items.map(item => ({
         ...item,
@@ -76,9 +92,15 @@ export async function GET(
 
 /**
  * PATCH /api/orders/[id]
- * 
- * Updates order status (payment and/or shipping) and invoice number
- * When paymentStatus changes to "paid", stock is deducted
+ *
+ * Updates an order. Supports two modes:
+ * 1. Status updates: paymentStatus, shippingStatus, invoiceNumber
+ * 2. Full edit: customerId, items, paymentMethod, orderType, discount, notes
+ *
+ * Stock handling:
+ * - When paymentStatus changes to "paid": stock is deducted
+ * - When paymentStatus changes FROM "paid": stock is restored
+ * - When items change on a paid order: old stock restored, new stock deducted
  */
 export async function PATCH(
   request: NextRequest,
@@ -87,9 +109,9 @@ export async function PATCH(
   try {
     const { id } = await params
     const body: UpdateOrderBody = await request.json()
-    const { paymentStatus, shippingStatus, invoiceNumber } = body
+    const { paymentStatus, shippingStatus, invoiceNumber, customerId, items, paymentMethod, orderType, discount, notes } = body
 
-    // Fetch current order
+    // Fetch current order with items
     const currentOrder = await prisma.order.findUnique({
       where: { id },
       include: {
@@ -108,15 +130,22 @@ export async function PATCH(
       )
     }
 
-    // Build update data
-    const updateData: {
-      paymentStatus?: string
-      paymentDate?: Date | null
-      shippingStatus?: string
-      shippingDate?: Date | null
-      deliveryDate?: Date | null
-      invoiceNumber?: string | null
-    } = {}
+    // Detect if this is a full order edit (items provided)
+    const isFullEdit = items !== undefined
+
+    // Validate customer if changing
+    if (customerId) {
+      const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+      if (!customer) {
+        return NextResponse.json(
+          { success: false, error: 'Cliente no encontrado' },
+          { status: 404 }
+        )
+      }
+    }
+
+    // Build update data for order fields
+    const updateData: Record<string, unknown> = {}
 
     // Handle invoice number change
     if (invoiceNumber !== undefined) {
@@ -126,7 +155,6 @@ export async function PATCH(
     // Handle payment status change
     if (paymentStatus && paymentStatus !== currentOrder.paymentStatus) {
       updateData.paymentStatus = paymentStatus
-
       if (paymentStatus === 'paid') {
         updateData.paymentDate = new Date()
       } else if (paymentStatus === 'pending') {
@@ -137,7 +165,6 @@ export async function PATCH(
     // Handle shipping status change
     if (shippingStatus && shippingStatus !== currentOrder.shippingStatus) {
       updateData.shippingStatus = shippingStatus
-
       if (shippingStatus === 'shipped') {
         updateData.shippingDate = new Date()
       } else if (shippingStatus === 'delivered') {
@@ -151,35 +178,107 @@ export async function PATCH(
       }
     }
 
-    // Check if we need to deduct stock (payment changing to "paid")
-    const shouldDeductStock =
-      paymentStatus === 'paid' && currentOrder.paymentStatus !== 'paid'
+    // Handle simple field updates
+    if (customerId) updateData.customerId = customerId
+    if (paymentMethod) updateData.paymentMethod = paymentMethod
+    if (orderType) updateData.orderType = orderType
+    if (notes !== undefined) updateData.notes = notes || null
+    if (discount !== undefined) updateData.discount = discount
 
-    // Check if we need to restore stock (payment changing FROM "paid" to something else)
-    const shouldRestoreStock =
-      paymentStatus &&
-      paymentStatus !== 'paid' &&
-      currentOrder.paymentStatus === 'paid'
+    // Recalculate totals if items or discount changed
+    if (isFullEdit) {
+      let subtotal = 0
+      for (const item of items) {
+        subtotal += item.unitPrice * item.quantity
+      }
+      const tax = Math.round(subtotal * TAX_RATE)
+      const finalDiscount = discount !== undefined ? discount : Number(currentOrder.discount)
+      const total = subtotal + tax - finalDiscount
+
+      updateData.subtotal = subtotal
+      updateData.tax = tax
+      updateData.discount = finalDiscount
+      updateData.total = total
+    } else if (discount !== undefined) {
+      // Only discount changed, recalculate total
+      const subtotal = Number(currentOrder.subtotal)
+      const tax = Number(currentOrder.tax)
+      updateData.total = subtotal + tax - discount
+    }
+
+    // Stock logic flags
+    const isPaid = currentOrder.paymentStatus === 'paid'
+    const willBePaid = paymentStatus === 'paid' || (isPaid && paymentStatus === undefined)
+
+    // For status-only changes (no items edit)
+    const shouldDeductStock = !isFullEdit && paymentStatus === 'paid' && !isPaid
+    const shouldRestoreStock = !isFullEdit && paymentStatus !== undefined && paymentStatus !== 'paid' && isPaid
 
     // Perform update in transaction
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      // Deduct stock if payment is now "paid"
-      if (shouldDeductStock) {
-        for (const item of currentOrder.items) {
-          const product = await tx.product.findUnique({
-            where: { id: item.productId }
-          })
+      // FULL EDIT: handle stock for items change
+      if (isFullEdit) {
+        // If order is paid, restore old stock first
+        if (isPaid) {
+          for (const item of currentOrder.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { increment: item.quantity } }
+            })
+          }
+        }
 
-          if (!product) {
-            throw new Error(`Producto no encontrado: ${item.productId}`)
+        // Validate new items exist and have stock (if order will be paid)
+        if (willBePaid) {
+          const productIds = items.map(i => i.productId)
+          const products = await tx.product.findMany({ where: { id: { in: productIds } } })
+
+          for (const item of items) {
+            const product = products.find(p => p.id === item.productId)
+            if (!product) {
+              throw new Error(`Producto no encontrado: ${item.productId}`)
+            }
+            if (product.stock < item.quantity) {
+              throw new Error(
+                `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Requerido: ${item.quantity}`
+              )
+            }
           }
 
+          // Deduct new stock
+          for (const item of items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } }
+            })
+          }
+        }
+
+        // Delete old items and create new ones
+        await tx.orderItem.deleteMany({ where: { orderId: id } })
+        for (const item of items) {
+          await tx.orderItem.create({
+            data: {
+              orderId: id,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              subtotal: item.unitPrice * item.quantity
+            }
+          })
+        }
+      }
+
+      // STATUS-ONLY: stock deduction/restoration
+      if (shouldDeductStock) {
+        for (const item of currentOrder.items) {
+          const product = await tx.product.findUnique({ where: { id: item.productId } })
+          if (!product) throw new Error(`Producto no encontrado: ${item.productId}`)
           if (product.stock < item.quantity) {
             throw new Error(
               `Stock insuficiente para ${product.name}. Disponible: ${product.stock}, Requerido: ${item.quantity}`
             )
           }
-
           await tx.product.update({
             where: { id: item.productId },
             data: { stock: product.stock - item.quantity }
@@ -187,7 +286,6 @@ export async function PATCH(
         }
       }
 
-      // Restore stock if payment was "paid" and is being changed
       if (shouldRestoreStock) {
         for (const item of currentOrder.items) {
           await tx.product.update({
@@ -203,11 +301,7 @@ export async function PATCH(
         data: updateData,
         include: {
           customer: true,
-          items: {
-            include: {
-              product: true
-            }
-          }
+          items: { include: { product: true } }
         }
       })
 
@@ -219,6 +313,7 @@ export async function PATCH(
       ...updatedOrder,
       subtotal: Number(updatedOrder.subtotal),
       tax: Number(updatedOrder.tax),
+      discount: Number(updatedOrder.discount),
       total: Number(updatedOrder.total),
       items: updatedOrder.items.map(item => ({
         ...item,
@@ -232,7 +327,9 @@ export async function PATCH(
     }
 
     let message = 'Pedido actualizado'
-    if (shouldDeductStock) {
+    if (isFullEdit) {
+      message = 'Pedido editado exitosamente'
+    } else if (shouldDeductStock) {
       message = 'Pedido marcado como pagado. Stock descontado.'
     } else if (shouldRestoreStock) {
       message = 'Estado de pago revertido. Stock restaurado.'
@@ -249,7 +346,6 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating order:', error)
 
-    // Handle unique constraint error for invoice number
     if (error instanceof Error && error.message.includes('Unique constraint')) {
       return NextResponse.json(
         {
@@ -264,7 +360,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to update order',
+        error: error instanceof Error ? error.message : 'Error al actualizar el pedido',
         message: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
@@ -274,12 +370,12 @@ export async function PATCH(
 
 /**
  * DELETE /api/orders/[id]
- * 
+ *
  * Deletes an order and its items
  * If payment was "paid", restores stock to products
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -298,7 +394,6 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
-      // If order was paid, restore stock
       if (order.paymentStatus === 'paid') {
         for (const item of order.items) {
           await tx.product.update({
@@ -308,15 +403,8 @@ export async function DELETE(
         }
       }
 
-      // Delete order items first
-      await tx.orderItem.deleteMany({
-        where: { orderId: id }
-      })
-
-      // Delete the order
-      await tx.order.delete({
-        where: { id }
-      })
+      await tx.orderItem.deleteMany({ where: { orderId: id } })
+      await tx.order.delete({ where: { id } })
     })
 
     return NextResponse.json({

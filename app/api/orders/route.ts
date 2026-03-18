@@ -19,6 +19,7 @@ interface CreateOrderBody {
   items: OrderItemInput[]
   paymentMethod: 'cash' | 'nequi' | 'bank' | 'link'
   orderType?: 'normal' | 'promomix'
+  discount?: number
   notes?: string
 }
 
@@ -108,6 +109,7 @@ export async function GET(request: NextRequest) {
       ...order,
       subtotal: Number(order.subtotal),
       tax: Number(order.tax),
+      discount: Number(order.discount),
       total: Number(order.total),
       items: order.items.map(item => ({
         ...item,
@@ -156,6 +158,7 @@ export async function POST(request: NextRequest) {
     const body: CreateOrderBody = await request.json()
     const { customerId, items, paymentMethod, notes } = body
     const orderType = body.orderType || 'normal'
+    const discount = body.discount || 0
 
     // Validate required fields
     const errors: string[] = []
@@ -278,7 +281,7 @@ export async function POST(request: NextRequest) {
       subtotal += item.unitPrice * item.quantity
     }
     const tax = Math.round(subtotal * TAX_RATE)
-    const total = subtotal + tax
+    const total = subtotal + tax - discount
 
     // Create order with items in a transaction
     const order = await prisma.$transaction(async (tx) => {
@@ -288,6 +291,7 @@ export async function POST(request: NextRequest) {
           customerId,
           subtotal,
           tax,
+          discount,
           total,
           paymentMethod,
           paymentStatus: 'pending',
@@ -321,6 +325,7 @@ export async function POST(request: NextRequest) {
       ...order,
       subtotal: Number(order.subtotal),
       tax: Number(order.tax),
+      discount: Number(order.discount),
       total: Number(order.total),
       items: order.items.map(item => ({
         ...item,

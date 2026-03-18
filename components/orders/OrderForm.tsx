@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { CustomerSelect } from '@/components/customers/CustomerSelect'
 import { ProductPicker } from './ProductPicker'
 import { OrderSuccess } from './OrderSuccess'
-import type { CustomerListItem } from '@/types'
+import type { CustomerListItem, OrderWithDetails } from '@/types'
 import { PROMOMIX_MINIMUM } from '@/lib/promomix-config'
 
 interface OrderItem {
@@ -19,6 +19,7 @@ interface OrderItem {
 interface OrderFormProps {
   onSuccess?: (orderId: string) => void
   onCancel?: () => void
+  editOrder?: OrderWithDetails
 }
 
 interface SuccessData {
@@ -36,19 +37,51 @@ const PAYMENT_METHODS: { value: PaymentMethodType; label: string; icon: string }
   { value: 'link', label: 'Link', icon: '🔗' }
 ]
 
-export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(null)
-  const [cart, setCart] = useState<OrderItem[]>([])
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('cash')
-  const [orderType, setOrderType] = useState<OrderType>('normal')
-  const [notes, setNotes] = useState('')
+function buildInitialCart(editOrder?: OrderWithDetails): OrderItem[] {
+  if (!editOrder) return []
+  return editOrder.items.map(item => ({
+    productId: item.productId,
+    productName: item.product.name,
+    unit: item.product.unit,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+    subtotal: item.subtotal
+  }))
+}
+
+export function OrderForm({ onSuccess, onCancel, editOrder }: OrderFormProps) {
+  const isEditMode = !!editOrder
+
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerListItem | null>(
+    editOrder?.customer ? {
+      id: editOrder.customer.id,
+      documentType: editOrder.customer.documentType || 'cedula',
+      cedula: editOrder.customer.cedula,
+      name: editOrder.customer.name,
+      email: editOrder.customer.email,
+      phone: editOrder.customer.phone,
+      address: editOrder.customer.address,
+      city: editOrder.customer.city,
+      active: true,
+      createdAt: editOrder.customer.createdAt
+    } : null
+  )
+  const [cart, setCart] = useState<OrderItem[]>(buildInitialCart(editOrder))
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>(
+    (editOrder?.paymentMethod as PaymentMethodType) || 'cash'
+  )
+  const [orderType, setOrderType] = useState<OrderType>(
+    (editOrder?.orderType as OrderType) || 'normal'
+  )
+  const [discount, setDiscount] = useState<number>(editOrder?.discount || 0)
+  const [notes, setNotes] = useState(editOrder?.notes || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successData, setSuccessData] = useState<SuccessData | null>(null)
 
   const subtotal = cart.reduce((sum, item) => sum + item.subtotal, 0)
   const iva = Math.round(subtotal * 0.19)
-  const total = subtotal + iva
+  const total = subtotal + iva - discount
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   const isPromoMix = orderType === 'promomix'
@@ -73,6 +106,11 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
     }
   }
 
+  function handleDiscountChange(value: string) {
+    const num = parseInt(value.replace(/[^\d]/g, ''), 10)
+    setDiscount(isNaN(num) ? 0 : num)
+  }
+
   async function handleSubmit(e?: React.FormEvent) {
     if (e) e.preventDefault()
 
@@ -91,40 +129,63 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
       return
     }
 
+    if (discount < 0) {
+      setError('El descuento no puede ser negativo')
+      return
+    }
+
+    if (discount > subtotal + iva) {
+      setError('El descuento no puede ser mayor al subtotal + IVA')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
+      const requestBody = {
+        customerId: selectedCustomer.id,
+        items: cart.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        })),
+        paymentMethod,
+        orderType,
+        discount,
+        notes: notes.trim() || undefined
+      }
+
+      const url = isEditMode ? `/api/orders/${editOrder.id}` : '/api/orders'
+      const method = isEditMode ? 'PATCH' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: selectedCustomer.id,
-          items: cart.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice
-          })),
-          paymentMethod,
-          orderType,
-          notes: notes.trim() || undefined
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Error al crear el pedido')
+        throw new Error(data.error || (isEditMode ? 'Error al editar el pedido' : 'Error al crear el pedido'))
       }
 
       const data = await response.json()
 
-      setSuccessData({
-        orderId: data.data.id,
-        orderNumber: data.data.orderNumber
-      })
+      if (isEditMode) {
+        // Skip success animation for edits, go straight to callback
+        if (onSuccess) {
+          onSuccess(editOrder.id)
+        }
+      } else {
+        setSuccessData({
+          orderId: data.data.id,
+          orderNumber: data.data.orderNumber
+        })
+      }
     } catch (err) {
-      console.error('Error creating order:', err)
-      setError(err instanceof Error ? err.message : 'Error al crear el pedido')
+      console.error('Error saving order:', err)
+      setError(err instanceof Error ? err.message : (isEditMode ? 'Error al editar el pedido' : 'Error al crear el pedido'))
       setLoading(false)
     }
   }
@@ -293,6 +354,24 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                 <span className="text-gray-600">IVA (19%)</span>
                 <span>{formatCOP(iva)}</span>
               </div>
+
+              {/* Discount field */}
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Descuento</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-gray-400 text-sm">-$</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={discount === 0 ? '' : discount.toLocaleString('es-CO')}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    disabled={loading}
+                    placeholder="0"
+                    className="w-28 text-right px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-nouvie-blue focus:border-nouvie-blue"
+                  />
+                </div>
+              </div>
+
               <div className="flex justify-between text-lg font-bold text-nouvie-blue">
                 <span>Total</span>
                 <span>{formatCOP(total)}</span>
@@ -347,10 +426,10 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Creando...
+                {isEditMode ? 'Guardando...' : 'Creando...'}
               </span>
             ) : (
-              'Crear Pedido'
+              isEditMode ? 'Guardar Cambios' : 'Crear Pedido'
             )}
           </button>
         </div>
@@ -358,7 +437,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
 
       {/* Mobile Fixed Bottom Bar - positioned above bottom nav */}
       {showMobileBar && (
-        <div 
+        <div
           className="md:hidden fixed left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-40 px-4 py-3"
           style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
         >
@@ -383,10 +462,10 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Creando...
+                  {isEditMode ? 'Guardando...' : 'Creando...'}
                 </span>
               ) : (
-                'Crear Pedido'
+                isEditMode ? 'Guardar' : 'Crear Pedido'
               )}
             </button>
           </div>

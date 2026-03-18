@@ -3,7 +3,10 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 // Type for the POST request body
+const VALID_DOCUMENT_TYPES = ['cedula', 'nit', 'cedula_extranjeria']
+
 interface CreateCustomerBody {
+  documentType?: string
   cedula: string
   name: string
   email: string
@@ -58,6 +61,7 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
+        documentType: true,
         cedula: true,
         name: true,
         email: true,
@@ -115,14 +119,21 @@ export async function POST(request: NextRequest) {
 
     // Extract fields from body
     const { cedula, name, email, phone, address, city } = body
+    const documentType = body.documentType || 'cedula'
 
     // Validate required fields
     const errors: string[] = []
 
+    if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
+      errors.push('Tipo de documento no válido')
+    }
+
     if (!cedula || cedula.trim() === '') {
-      errors.push('Cédula es requerida')
-    } else if (!/^\d{8,10}$/.test(cedula.trim())) {
-      errors.push('Cédula debe tener entre 8 y 10 dígitos')
+      errors.push('Número de documento es requerido')
+    } else if (documentType === 'cedula' && !/^\d{6,10}$/.test(cedula.trim())) {
+      errors.push('Cédula debe tener entre 6 y 10 dígitos')
+    } else if (documentType === 'nit' && !/^\d{9,10}$/.test(cedula.trim())) {
+      errors.push('NIT debe tener entre 9 y 10 dígitos')
     }
 
     if (!name || name.trim() === '') {
@@ -169,6 +180,7 @@ export async function POST(request: NextRequest) {
 
     // Create the new customer using Prisma's typed input
     const customerData: Prisma.CustomerCreateInput = {
+      documentType,
       cedula: cedula.trim(),
       name: name.trim().toUpperCase(),
       email: email.trim().toLowerCase(),

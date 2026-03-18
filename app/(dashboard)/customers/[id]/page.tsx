@@ -19,6 +19,7 @@ interface CustomerOrder {
 
 interface CustomerWithOrders {
   id: string
+  documentType: string
   cedula: string
   name: string
   email: string | null

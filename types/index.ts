@@ -18,7 +18,8 @@ export interface User {
   // Customer type (Your 614 real customers!)
   export interface Customer {
     id: string
-    cedula: string          // Colombian ID
+    documentType: string    // "cedula", "nit", "cedula_extranjeria"
+    cedula: string          // Document number
     name: string
     email: string | null
     phone: string
@@ -52,6 +53,7 @@ export interface User {
     orderDate: Date
     subtotal: number
     tax: number
+    discount: number
     total: number
     paymentMethod: string   // "cash", "transfer", "card", "credit"
     paymentStatus: string   // "pending", "partial", "paid"
@@ -189,6 +191,7 @@ export interface User {
 // What the GET /api/customers endpoint returns for each customer
 export interface CustomerListItem {
     id: string
+    documentType: string
     cedula: string
     name: string
     email: string | null

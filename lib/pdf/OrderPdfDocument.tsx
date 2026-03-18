@@ -238,6 +238,7 @@ export interface OrderPdfData {
   createdAt: Date
   subtotal: number
   tax: number
+  discount: number
   total: number
   notes: string | null
   customer: {
@@ -364,6 +365,12 @@ export function OrderPdfDocument({ order }: OrderPdfDocumentProps) {
             <Text style={styles.totalLabel}>IVA (19%):</Text>
             <Text style={styles.totalValue}>{formatCOP(order.tax)}</Text>
           </View>
+          {order.discount > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={{ ...styles.totalLabel, color: '#DC2626' }}>Descuento:</Text>
+              <Text style={{ ...styles.totalValue, color: '#DC2626' }}>-{formatCOP(order.discount)}</Text>
+            </View>
+          )}
           <View style={styles.grandTotal}>
             <Text style={styles.grandTotalLabel}>TOTAL:</Text>
             <Text style={styles.grandTotalValue}>{formatCOP(order.total)}</Text>

@@ -35,6 +35,7 @@ export async function GET(
       createdAt: order.createdAt,
       subtotal: Number(order.subtotal),
       tax: Number(order.tax),
+      discount: Number(order.discount),
       total: Number(order.total),
       notes: order.notes,
       customer: {

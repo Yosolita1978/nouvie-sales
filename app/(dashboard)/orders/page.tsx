@@ -222,6 +222,23 @@ export default function OrdersPage() {
 
   const hasActiveFilters = search !== '' || activeFilter !== 'all' || paymentMethodFilter !== 'all'
 
+  // Compute stats from all orders (unfiltered fetch would be ideal, but we use what's loaded)
+  const allOrders = orders
+  const now = new Date()
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const startOfWeek = new Date(startOfDay)
+  startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay()) // Sunday
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const todayOrders = allOrders.filter(o => new Date(o.orderDate) >= startOfDay)
+  const weekOrders = allOrders.filter(o => new Date(o.orderDate) >= startOfWeek)
+  const monthOrders = allOrders.filter(o => new Date(o.orderDate) >= startOfMonth)
+
+  const sumPaid = (list: OrderWithDetails[]) =>
+    list.filter(o => o.paymentStatus === 'paid').reduce((s, o) => s + o.total, 0)
+  const sumPending = (list: OrderWithDetails[]) =>
+    list.filter(o => o.paymentStatus !== 'paid').reduce((s, o) => s + o.total, 0)
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -252,6 +269,45 @@ export default function OrdersPage() {
           </Link>
         </div>
       </div>
+
+      {/* Stats summary */}
+      {!loading && allOrders.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {/* Today */}
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Hoy</p>
+            <p className="text-sm font-bold text-gray-900 mt-0.5">{formatCOP(sumPaid(todayOrders))}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-gray-500">{todayOrders.length} pedido{todayOrders.length !== 1 ? 's' : ''}</span>
+              {sumPending(todayOrders) > 0 && (
+                <span className="text-[10px] text-amber-600">x cobrar {formatCOP(sumPending(todayOrders))}</span>
+              )}
+            </div>
+          </div>
+          {/* This week */}
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Semana</p>
+            <p className="text-sm font-bold text-gray-900 mt-0.5">{formatCOP(sumPaid(weekOrders))}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-gray-500">{weekOrders.length} pedido{weekOrders.length !== 1 ? 's' : ''}</span>
+              {sumPending(weekOrders) > 0 && (
+                <span className="text-[10px] text-amber-600">x cobrar {formatCOP(sumPending(weekOrders))}</span>
+              )}
+            </div>
+          </div>
+          {/* This month */}
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5">
+            <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Mes</p>
+            <p className="text-sm font-bold text-gray-900 mt-0.5">{formatCOP(sumPaid(monthOrders))}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-gray-500">{monthOrders.length} pedido{monthOrders.length !== 1 ? 's' : ''}</span>
+              {sumPending(monthOrders) > 0 && (
+                <span className="text-[10px] text-amber-600">x cobrar {formatCOP(sumPending(monthOrders))}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Input */}
       <div className="relative max-w-md">
@@ -419,6 +475,9 @@ export default function OrdersPage() {
                   </p>
                   <p className="text-sm text-gray-500">
                     IVA: {formatCOP(order.tax)}
+                    {order.discount > 0 && (
+                      <span className="text-red-500 ml-2">Desc: -{formatCOP(order.discount)}</span>
+                    )}
                   </p>
                 </div>
               </div>

@@ -13,6 +13,7 @@ export default function ProductsPage() {
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAlerts, setShowAlerts] = useState(false)
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
 
@@ -88,32 +89,6 @@ export default function ProductsPage() {
 
   const hasStockAlerts = outOfStockProducts.length > 0 || lowStockProducts.length > 0
 
-  // Helper function to group products by category and format the summary
-  const formatCategorySummary = (products: Product[]): string => {
-    const categoryCount: Record<string, number> = {}
-    products.forEach((p) => {
-      const cat = p.category || 'Sin categoría'
-      categoryCount[cat] = (categoryCount[cat] || 0) + 1
-    })
-
-    const entries = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])
-
-    if (entries.length === 1) {
-      // All products are from one category
-      const [category, count] = entries[0]
-      return `${count} ${category.toUpperCase()}`
-    }
-
-    // Multiple categories - show top 2 and summarize rest
-    const formatted = entries.slice(0, 2).map(([cat, count]) => `${count} ${cat}`).join(', ')
-    const remaining = entries.slice(2).reduce((sum, [, count]) => sum + count, 0)
-
-    if (remaining > 0) {
-      return `${formatted} y ${remaining} más`
-    }
-    return formatted
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -133,93 +108,70 @@ export default function ProductsPage() {
         </Link>
       </div>
 
-      {/* ============================================
-          STOCK ALERTS SECTION - High Visibility
-          ============================================ */}
+      {/* Stock Alerts — compact collapsible bar */}
       {!loading && hasStockAlerts && (
-        <div className="space-y-4">
-          {/* Section Header */}
-          <div className="flex items-center gap-2">
-            <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h2 className="text-lg font-bold text-gray-900">⚠️ Alertas de Inventario</h2>
-          </div>
-
-          {/* Out of Stock Alert - RED */}
-          {outOfStockProducts.length > 0 && (
-            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-red-100 rounded-full flex-shrink-0">
-                  <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-red-800">
-                    🚨 {formatCategorySummary(outOfStockProducts)} AGOTADO{outOfStockProducts.length !== 1 ? 'S' : ''}
-                  </h3>
-                  <p className="text-red-600 mt-1">
-                    {outOfStockProducts.length} producto{outOfStockProducts.length !== 1 ? 's' : ''} sin stock - no se pueden vender
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {outOfStockProducts.slice(0, 6).map((product) => (
-                      <Link
-                        key={product.id}
-                        href={`/products/${product.id}`}
-                        className="inline-flex items-center gap-1 px-3 py-2 bg-red-100 hover:bg-red-200 text-red-800 text-sm font-medium rounded-lg transition-colors"
-                      >
-                        <span>❌</span>
-                        <span>{product.name}</span>
-                      </Link>
-                    ))}
-                    {outOfStockProducts.length > 6 && (
-                      <span className="inline-flex items-center px-3 py-2 bg-red-200 text-red-800 text-sm font-medium rounded-lg">
-                        +{outOfStockProducts.length - 6} más
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowAlerts(!showAlerts)}
+            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3 text-sm">
+              {outOfStockProducts.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 font-medium rounded-full text-xs">
+                  {outOfStockProducts.length} agotado{outOfStockProducts.length !== 1 ? 's' : ''}
+                </span>
+              )}
+              {lowStockProducts.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 font-medium rounded-full text-xs">
+                  {lowStockProducts.length} stock bajo
+                </span>
+              )}
             </div>
-          )}
+            <svg
+              className={`h-4 w-4 text-gray-400 transition-transform ${showAlerts ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-          {/* Low Stock Alert - YELLOW */}
-          {lowStockProducts.length > 0 && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 shadow-sm">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-amber-100 rounded-full flex-shrink-0">
-                  <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-amber-800">
-                    ⚠️ {formatCategorySummary(lowStockProducts)} con Stock Bajo
-                  </h3>
-                  <p className="text-amber-700 mt-1">
-                    {lowStockProducts.length} producto{lowStockProducts.length !== 1 ? 's' : ''} por debajo del stock mínimo
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {lowStockProducts.slice(0, 6).map((product) => (
+          {showAlerts && (
+            <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+              {outOfStockProducts.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-red-600 uppercase tracking-wide mb-1.5">Agotados</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {outOfStockProducts.map((product) => (
                       <Link
                         key={product.id}
                         href={`/products/${product.id}`}
-                        className="inline-flex items-center gap-1 px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-sm font-medium rounded-lg transition-colors"
+                        className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 text-xs rounded-md transition-colors"
                       >
-                        <span>⚠️</span>
-                        <span>{product.name}</span>
-                        <span className="text-amber-600">({product.stock}/{product.minStock})</span>
+                        {product.name}
                       </Link>
                     ))}
-                    {lowStockProducts.length > 6 && (
-                      <span className="inline-flex items-center px-3 py-2 bg-amber-200 text-amber-800 text-sm font-medium rounded-lg">
-                        +{lowStockProducts.length - 6} más
-                      </span>
-                    )}
                   </div>
                 </div>
-              </div>
+              )}
+              {lowStockProducts.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-amber-600 uppercase tracking-wide mb-1.5">Stock Bajo</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {lowStockProducts.map((product) => (
+                      <Link
+                        key={product.id}
+                        href={`/products/${product.id}`}
+                        className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs rounded-md transition-colors"
+                      >
+                        {product.name} <span className="text-amber-500">({product.stock})</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

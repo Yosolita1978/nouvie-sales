@@ -32,6 +32,14 @@ export default function ProductDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Inline editing state
+  const [editingStock, setEditingStock] = useState(false)
+  const [stockValue, setStockValue] = useState('')
+  const [editingPrice, setEditingPrice] = useState(false)
+  const [priceValue, setPriceValue] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const fetchProduct = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -95,6 +103,74 @@ export default function ProductDetailPage() {
   function handleCloseDialog() {
     setShowDeleteDialog(false)
     setDeleteError(null)
+  }
+
+  function startEditStock() {
+    setStockValue(product?.stock?.toString() || '0')
+    setSaveError(null)
+    setEditingStock(true)
+  }
+
+  function startEditPrice() {
+    setPriceValue(product?.price?.toString() || '0')
+    setSaveError(null)
+    setEditingPrice(true)
+  }
+
+  async function handleSaveStock() {
+    const num = parseInt(stockValue, 10)
+    if (isNaN(num) || num < 0) {
+      setSaveError('Stock debe ser un número mayor o igual a 0')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const response = await fetch('/api/products/' + productId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: num })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setSaveError(data.error || 'Error al guardar')
+        return
+      }
+      setProduct(data.data)
+      setEditingStock(false)
+    } catch {
+      setSaveError('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSavePrice() {
+    const num = parseInt(priceValue.replace(/[^\d]/g, ''), 10)
+    if (isNaN(num) || num < 0) {
+      setSaveError('Precio debe ser un número mayor o igual a 0')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const response = await fetch('/api/products/' + productId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: num })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setSaveError(data.error || 'Error al guardar')
+        return
+      }
+      setProduct(data.data)
+      setEditingPrice(false)
+    } catch {
+      setSaveError('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function getStockStatus() {
@@ -214,9 +290,56 @@ export default function ProductDetailPage() {
           </h2>
           <dl className="space-y-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Precio</dt>
-              <dd className="mt-1 text-2xl font-bold text-nouvie-blue">
-                {formatCOP(product.price)}
+              <dt className="text-sm font-medium text-gray-500 flex items-center justify-between">
+                Precio
+                {!editingPrice && (
+                  <button
+                    type="button"
+                    onClick={startEditPrice}
+                    className="text-xs text-nouvie-blue hover:underline"
+                  >
+                    Editar
+                  </button>
+                )}
+              </dt>
+              <dd className="mt-1">
+                {editingPrice ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400">$</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={priceValue}
+                        onChange={(e) => setPriceValue(e.target.value.replace(/[^\d]/g, ''))}
+                        className="input w-32 text-lg font-bold"
+                        disabled={saving}
+                        autoFocus
+                      />
+                    </div>
+                    {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditingPrice(false); setSaveError(null) }}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleSavePrice}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy"
+                      >
+                        {saving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-2xl font-bold text-nouvie-blue">
+                    {formatCOP(product.price)}
+                  </span>
+                )}
               </dd>
             </div>
             <div>
@@ -240,10 +363,57 @@ export default function ProductDetailPage() {
           </h2>
           <dl className="space-y-4">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Stock Actual</dt>
+              <dt className="text-sm font-medium text-gray-500 flex items-center justify-between">
+                Stock Actual
+                {!editingStock && (
+                  <button
+                    type="button"
+                    onClick={startEditStock}
+                    className="text-xs text-nouvie-blue hover:underline"
+                  >
+                    Editar
+                  </button>
+                )}
+              </dt>
               <dd className="mt-1">
-                <span className="text-2xl font-bold text-gray-900">{product.stock}</span>
-                <span className="text-gray-500 ml-2">{product.unit}</span>
+                {editingStock ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={stockValue}
+                        onChange={(e) => setStockValue(e.target.value.replace(/[^\d]/g, ''))}
+                        className="input w-32 text-lg font-bold"
+                        disabled={saving}
+                        autoFocus
+                      />
+                      <span className="text-gray-500">{product.unit}</span>
+                    </div>
+                    {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditingStock(false); setSaveError(null) }}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleSaveStock}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy"
+                      >
+                        {saving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-2xl font-bold text-gray-900">{product.stock}</span>
+                    <span className="text-gray-500 ml-2">{product.unit}</span>
+                  </>
+                )}
               </dd>
             </div>
             <div>
@@ -266,31 +436,7 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {product.stock <= product.minStock && product.stock > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <p className="text-amber-800">
-              El stock está por debajo del mínimo. Considera reabastecer este producto.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {product.stock === 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-red-800">
-              Este producto está agotado y no se puede agregar a nuevos pedidos.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Stock alerts removed — status badge in header is sufficient */}
 
       <ConfirmDialog
         isOpen={showDeleteDialog}

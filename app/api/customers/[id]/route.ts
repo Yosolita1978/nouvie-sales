@@ -109,6 +109,13 @@ export async function PATCH(
       errors.push('Teléfono es requerido')
     }
 
+    if (body.documentType !== undefined) {
+      const validTypes = ['cedula', 'nit', 'cedula_extranjeria']
+      if (!validTypes.includes(body.documentType)) {
+        errors.push('Tipo de documento no válido')
+      }
+    }
+
     if (errors.length > 0) {
       return NextResponse.json(
         { success: false, errors },
@@ -118,6 +125,8 @@ export async function PATCH(
 
     // Build update data (only include fields that were provided)
     const updateData: {
+      documentType?: string
+      cedula?: string
       name?: string
       email?: string | null
       phone?: string
@@ -125,6 +134,12 @@ export async function PATCH(
       city?: string | null
     } = {}
 
+    if (body.documentType !== undefined) {
+      updateData.documentType = body.documentType
+    }
+    if (body.cedula !== undefined) {
+      updateData.cedula = body.cedula.trim()
+    }
     if (body.name !== undefined) {
       updateData.name = body.name.trim().toUpperCase()
     }

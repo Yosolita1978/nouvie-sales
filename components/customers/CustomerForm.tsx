@@ -3,7 +3,16 @@
 import { useState } from 'react'
 import type { CustomerListItem } from '@/types'
 
+type DocumentType = 'cedula' | 'nit' | 'cedula_extranjeria'
+
+const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
+  { value: 'cedula', label: 'Cédula' },
+  { value: 'nit', label: 'NIT' },
+  { value: 'cedula_extranjeria', label: 'Cédula Extranjería' },
+]
+
 interface CustomerFormData {
+  documentType: DocumentType
   cedula: string
   name: string
   email: string
@@ -22,6 +31,7 @@ interface CustomerFormProps {
 function getInitialFormData(customer?: CustomerListItem | null): CustomerFormData {
   if (customer) {
     return {
+      documentType: (customer.documentType as DocumentType) || 'cedula',
       cedula: customer.cedula,
       name: customer.name,
       email: customer.email || '',
@@ -31,6 +41,7 @@ function getInitialFormData(customer?: CustomerListItem | null): CustomerFormDat
     }
   }
   return {
+    documentType: 'cedula',
     cedula: '',
     name: '',
     email: '',
@@ -50,13 +61,12 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
   function validate(): boolean {
     const newErrors: Partial<CustomerFormData> = {}
 
-    // Only validate cedula in create mode
-    if (!isEditMode) {
-      if (!formData.cedula.trim()) {
-        newErrors.cedula = 'Cédula es requerida'
-      } else if (!/^\d{8,10}$/.test(formData.cedula.trim())) {
-        newErrors.cedula = 'Cédula debe tener entre 8 y 10 dígitos'
-      }
+    if (!formData.cedula.trim()) {
+      newErrors.cedula = 'Número de documento es requerido'
+    } else if (formData.documentType === 'cedula' && !/^\d{6,10}$/.test(formData.cedula.trim())) {
+      newErrors.cedula = 'Cédula debe tener entre 6 y 10 dígitos'
+    } else if (formData.documentType === 'nit' && !/^\d{9,10}$/.test(formData.cedula.trim())) {
+      newErrors.cedula = 'NIT debe tener entre 9 y 10 dígitos'
     }
 
     if (!formData.name.trim()) {
@@ -135,23 +145,43 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
       )}
 
       <div>
+        <label className="label">
+          Tipo de Documento <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {DOCUMENT_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, documentType: type.value }))}
+              disabled={loading}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                formData.documentType === type.value
+                  ? 'bg-nouvie-blue text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+              } disabled:opacity-50`}
+            >
+              {type.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <label htmlFor="cedula" className="label">
-          Cédula <span className="text-red-500">*</span>
+          {formData.documentType === 'nit' ? 'NIT' : formData.documentType === 'cedula_extranjeria' ? 'Cédula de Extranjería' : 'Cédula'} <span className="text-red-500">*</span>
         </label>
         <input
           id="cedula"
           name="cedula"
           type="text"
-          inputMode="numeric"
+          inputMode={formData.documentType === 'cedula_extranjeria' ? 'text' : 'numeric'}
           value={formData.cedula}
           onChange={handleChange}
-          className={`${errors.cedula ? 'input-error' : 'input'} ${isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-          placeholder="1234567890"
-          disabled={loading || isEditMode}
+          className={errors.cedula ? 'input-error' : 'input'}
+          placeholder={formData.documentType === 'nit' ? '900123456' : formData.documentType === 'cedula_extranjeria' ? 'Número de documento' : '1234567890'}
+          disabled={loading}
         />
-        {isEditMode && (
-          <p className="text-xs text-gray-500 mt-1">La cédula no puede ser modificada</p>
-        )}
         {errors.cedula && <p className="error-message">{errors.cedula}</p>}
       </div>
 

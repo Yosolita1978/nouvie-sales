@@ -25,6 +25,7 @@ interface Order {
   shippingStatus: string
   subtotal: number
   tax: number
+  discount: number
   total: number
   paymentMethod: string
   orderType: string
@@ -334,6 +335,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           
           <div className="flex-1" />
           
+          <Link
+            href={`/orders/${id}/edit`}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Editar
+          </Link>
           <button
             onClick={handleDownloadPdf}
             disabled={downloadingPdf}
@@ -536,6 +546,12 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             <span className="text-gray-600">IVA (19%)</span>
             <span>{formatCOP(order.tax)}</span>
           </div>
+          {order.discount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-red-600 font-medium">Descuento</span>
+              <span className="text-red-600 font-medium">-{formatCOP(order.discount)}</span>
+            </div>
+          )}
           <div className={`flex justify-between text-xl font-bold pt-2 ${order.orderType === 'promomix' ? 'text-amber-600' : 'text-nouvie-blue'}`}>
             <span>Total</span>
             <span>{formatCOP(order.total)}</span>

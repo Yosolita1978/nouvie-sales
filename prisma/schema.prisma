@@ -29,7 +29,8 @@ model User {
 // ============================================
 model Customer {
   id        String   @id @default(uuid())
-  cedula    String   @unique // Colombian ID number
+  documentType String  @default("cedula") // "cedula", "nit", "cedula_extranjeria"
+  cedula    String   @unique // Document number (cedula, NIT, or cedula extranjeria)
   name      String
   email     String?
   phone     String
@@ -85,6 +86,7 @@ model Order {
   // Amounts
   subtotal      Decimal   @db.Decimal(10, 2)
   tax           Decimal   @db.Decimal(10, 2)
+  discount      Decimal   @default(0) @db.Decimal(10, 2)
   total         Decimal   @db.Decimal(10, 2)
   
   // Payment
