@@ -48,6 +48,18 @@ Mariana puede crear pedidos con descuento PromoMix directamente desde el sistema
 
 ---
 
+## Ver Pedidos por Mes
+
+Desde la pantalla principal de Pedidos, hay una sección "Ver pedidos por mes" que muestra solo los meses que tienen pedidos. Al hacer clic en un mes:
+
+1. Se abre la vista mensual con todos los pedidos de ese mes
+2. Se pueden filtrar por estado de pago, estado de envio, y metodo de pago
+3. Se puede buscar por numero de pedido o cliente
+4. El boton "Descargar Mes" exporta los pedidos de ese mes a Excel
+5. Las flechas < > permiten navegar al mes anterior o siguiente
+
+---
+
 ## Tareas Comunes
 
 ### Marcar pedido como pagado

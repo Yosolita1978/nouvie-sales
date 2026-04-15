@@ -17,6 +17,26 @@ Append new decisions at the top. Include [SHARED] tag if it affects both nouvie-
 
 ---
 
+## 2026-04-14: Monthly orders view route structure
+
+**Context**: Needed a `/orders/[month]` route to view orders by month, but `/orders/[id]` already exists for order detail
+**Options considered**: (A) `/orders/[month]` with param detection logic, (B) `/orders/month/[month]` nested route
+**Decision**: Used `/orders/month/[month]` to avoid ambiguity with the existing `/orders/[id]` dynamic route
+**Trade-off**: Slightly longer URL, but zero risk of route conflicts
+**Affects**: `app/(dashboard)/orders/month/[month]/page.tsx`
+
+---
+
+## 2026-04-14: Dynamic month navigation from database
+
+**Context**: Month navigation on the orders page initially showed a hardcoded last 6 months, but some months may have no orders
+**Options considered**: (A) Hardcoded last 6 months, (B) Query DB for months with orders
+**Decision**: Created `/api/orders/months` that queries distinct year/month from the orders table. Navigation only renders months that have data.
+**Trade-off**: Extra API call on page load, but lightweight (single GROUP BY query) and avoids showing empty months
+**Affects**: `app/api/orders/months/route.ts`, `app/(dashboard)/orders/page.tsx`
+
+---
+
 ## 2026-02-18: ExchangeRate model for USD pricing [SHARED]
 
 **Context**: nouvie-web needs to display product prices in USD for international visitors
