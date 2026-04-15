@@ -33,6 +33,9 @@ export default function OrdersPage() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>('all')
 
+  // Months with orders
+  const [orderMonths, setOrderMonths] = useState<{ key: string; year: number; month: number; count: number }[]>([])
+
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false)
   const [exportFrom, setExportFrom] = useState('')
@@ -94,6 +97,22 @@ export default function OrdersPage() {
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
+
+  // Fetch months that have orders (once on mount)
+  useEffect(() => {
+    async function fetchMonths() {
+      try {
+        const response = await fetch('/api/orders/months')
+        const data = await response.json()
+        if (data.success) {
+          setOrderMonths(data.data)
+        }
+      } catch (err) {
+        console.error('Error fetching order months:', err)
+      }
+    }
+    fetchMonths()
+  }, [])
 
   function getPaymentStatusBadge(status: string) {
     const badges: Record<string, string> = {
@@ -305,6 +324,40 @@ export default function OrdersPage() {
                 <span className="text-[10px] text-amber-600">x cobrar {formatCOP(sumPending(monthOrders))}</span>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Month navigation — only shows months that have orders */}
+      {orderMonths.length > 0 && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <p className="text-sm font-medium text-gray-600">Ver pedidos por mes</p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto">
+            {orderMonths.map((m) => {
+              const monthNames = [
+                'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+              ]
+              const label = `${monthNames[m.month - 1]} ${m.year}`
+              return (
+                <Link
+                  key={m.key}
+                  href={`/orders/month/${m.key}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-nouvie-blue bg-white border border-gray-200 hover:bg-nouvie-blue hover:text-white whitespace-nowrap transition-colors"
+                >
+                  {label}
+                  <span className="text-xs opacity-70">({m.count})</span>
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}

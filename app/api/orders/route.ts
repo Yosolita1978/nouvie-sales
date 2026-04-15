@@ -34,6 +34,7 @@ interface CreateOrderBody {
  *   - shippingStatus: Filter by shipping status (preparing, shipped, delivered)
  *   - paymentMethod: Filter by payment method (cash, nequi, bank, link)
  *   - period: Filter by time period (week = last 7 days)
+ *   - month: Filter by month (format: YYYY-MM, e.g. 2026-04)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
     const shippingStatus = searchParams.get('shippingStatus')
     const paymentMethod = searchParams.get('paymentMethod')
     const period = searchParams.get('period')
+    const month = searchParams.get('month')
 
     // Build where clause dynamically
     const whereConditions: Prisma.OrderWhereInput = {}
@@ -62,8 +64,20 @@ export async function GET(request: NextRequest) {
       whereConditions.paymentMethod = paymentMethod
     }
 
+    // Filter by specific month (YYYY-MM format)
+    if (month) {
+      const [yearStr, monthStr] = month.split('-')
+      const yearNum = parseInt(yearStr, 10)
+      const monthNum = parseInt(monthStr, 10)
+      const startOfMonth = new Date(yearNum, monthNum - 1, 1)
+      const startOfNextMonth = new Date(yearNum, monthNum, 1)
+      whereConditions.orderDate = {
+        gte: startOfMonth,
+        lt: startOfNextMonth
+      }
+    }
     // Filter by period (this week = last 7 days)
-    if (period === 'week') {
+    else if (period === 'week') {
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
       whereConditions.orderDate = {
