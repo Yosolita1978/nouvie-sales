@@ -6,20 +6,20 @@
  * This script:
  * 1. Updates category from "Productos" to "Capilar" for all capilar products
  * 2. Updates prices to correct values (sin IVA):
- *    - Shampoos (237 ml): $41,597
- *    - Mascarillas (177 ml): $52,101
- *    - Lociones (177 ml): $46,218
+ *    - Shampoos (237 ml): $57,143
+ *    - Mascarillas (177 ml): $73,950
+ *    - Lociones (177 ml): $65,546
  */
 
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Price mapping (sin IVA) based on product type
+// Price mapping (sin IVA) based on product type — Updated April 2026
 const CAPILAR_PRICES = {
-  shampoo: 41597,    // $41,597 sin IVA → $49,500 con IVA
-  mascarilla: 52101, // $52,101 sin IVA → $62,000 con IVA
-  locion: 46218,     // $46,218 sin IVA → $55,000 con IVA
+  shampoo: 57143,    // $57,143 sin IVA → $68,000 con IVA
+  mascarilla: 73950, // $73,950 sin IVA → $88,000 con IVA
+  locion: 65546,     // $65,546 sin IVA → $78,000 con IVA
 }
 
 // Products to update with their correct prices

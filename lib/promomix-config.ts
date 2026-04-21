@@ -44,14 +44,14 @@ export const HOGAR_PRODUCTS: PromoMixProduct[] = [
 //       Confirm with client if this product should exist or was intentionally removed.
 
 export const CAPILAR_PRODUCTS: PromoMixProduct[] = [
-  { id: 'shampoo-suave-y-liso', name: 'Shampoo Suave y Liso (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
-  { id: 'mascarilla-suave-y-liso', name: 'Mascarilla Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 62000, promoPrice: 44268 },
-  { id: 'locion-suave-y-liso', name: 'Loción Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
-  { id: 'shampoo-revitalizante', name: 'Shampoo Revitalizante (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
-  { id: 'mascarilla-reparacion-intensa', name: 'Mascarilla Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 62000, promoPrice: 44268 },
-  { id: 'locion-revitalizante', name: 'Loción Revitalizante (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
-  { id: 'shampoo-reparacion-intensa', name: 'Shampoo Reparación Intensa (237 ml)', category: 'capilar', size: '237 ml', basePrice: 49500, promoPrice: 35343 },
-  { id: 'locion-reparacion-intensa', name: 'Loción Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 55000, promoPrice: 39270 },
+  { id: 'shampoo-suave-y-liso', name: 'Shampoo Suave y Liso (237 ml)', category: 'capilar', size: '237 ml', basePrice: 68000, promoPrice: 48552 },
+  { id: 'mascarilla-suave-y-liso', name: 'Mascarilla Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 88000, promoPrice: 62832 },
+  { id: 'locion-suave-y-liso', name: 'Loción Suave y Liso (177 ml)', category: 'capilar', size: '177 ml', basePrice: 78000, promoPrice: 55692 },
+  { id: 'shampoo-revitalizante', name: 'Shampoo Revitalizante (237 ml)', category: 'capilar', size: '237 ml', basePrice: 68000, promoPrice: 48552 },
+  { id: 'mascarilla-reparacion-intensa', name: 'Mascarilla Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 88000, promoPrice: 62832 },
+  { id: 'locion-revitalizante', name: 'Loción Revitalizante (177 ml)', category: 'capilar', size: '177 ml', basePrice: 78000, promoPrice: 55692 },
+  { id: 'shampoo-reparacion-intensa', name: 'Shampoo Reparación Intensa (237 ml)', category: 'capilar', size: '237 ml', basePrice: 68000, promoPrice: 48552 },
+  { id: 'locion-reparacion-intensa', name: 'Loción Reparación Intensa (177 ml)', category: 'capilar', size: '177 ml', basePrice: 78000, promoPrice: 55692 },
 ]
 
 // ============================================

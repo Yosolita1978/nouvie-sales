@@ -39,15 +39,15 @@ const CORRECT_PRICES = [
   { name: 'Desincrustante (1 l)', price: 116159, category: 'Ordeño' },
   { name: 'Sanitizante (1 l)', price: 62815, category: 'Ordeño' },
 
-  // CAPILAR
-  { name: 'Shampoo Suave y Liso (237 ml)', price: 41597, category: 'Capilar' },
-  { name: 'Shampoo Revitalizante (237 ml)', price: 41597, category: 'Capilar' },
-  { name: 'Shampoo Reparación intensa (237 ml)', price: 41597, category: 'Capilar' },
-  { name: 'Mascarilla Suave y Liso (177 ml)', price: 52101, category: 'Capilar' },
-  { name: 'Mascarilla Reparación intensa (177 ml)', price: 52101, category: 'Capilar' },
-  { name: 'Loción Suave y Liso (177 ml)', price: 46218, category: 'Capilar' },
-  { name: 'Loción Revitalizante (177 ml)', price: 46218, category: 'Capilar' },
-  { name: 'Loción Reparación intensa (177 ml)', price: 46218, category: 'Capilar' },
+  // CAPILAR — Updated April 2026 (Mercado Libre price alignment)
+  { name: 'Shampoo Suave y Liso (237 ml)', price: 57143, category: 'Capilar' },
+  { name: 'Shampoo Revitalizante (237 ml)', price: 57143, category: 'Capilar' },
+  { name: 'Shampoo Reparación intensa (237 ml)', price: 57143, category: 'Capilar' },
+  { name: 'Mascarilla Suave y Liso (177 ml)', price: 73950, category: 'Capilar' },
+  { name: 'Mascarilla Reparación intensa (177 ml)', price: 73950, category: 'Capilar' },
+  { name: 'Loción Suave y Liso (177 ml)', price: 65546, category: 'Capilar' },
+  { name: 'Loción Revitalizante (177 ml)', price: 65546, category: 'Capilar' },
+  { name: 'Loción Reparación intensa (177 ml)', price: 65546, category: 'Capilar' },
 
   // ATOMIZADORES
   { name: 'Atomizador Desengrasante Multiusos (500 ml)', price: 4832, category: 'Hogar' },
