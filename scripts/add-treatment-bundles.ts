@@ -13,13 +13,13 @@ const prisma = new PrismaClient()
 
 // Bundle prices con IVA from client (updated April 2026):
 // - Tratamiento Suave y Liso (3 products): $188,000
-// - Tratamiento Reparación Intensa (3 products): $158,000
-// - Tratamiento Revitalizante (2 products): $96,000
+// - Tratamiento Reparación Intensa (3 products): $188,000
+// - Tratamiento Revitalizante (2 products): $116,800
 //
 // Stored sin IVA:
 // - $188,000 / 1.19 = $157,983
-// - $158,000 / 1.19 = $132,773
-// - $96,000 / 1.19 = $80,672
+// - $188,000 / 1.19 = $157,983
+// - $116,800 / 1.19 = $98,151
 
 const TREATMENT_BUNDLES = [
   {
@@ -32,14 +32,14 @@ const TREATMENT_BUNDLES = [
   {
     name: 'Tratamiento Reparación Intensa',
     category: 'Capilar',
-    price: 132773, // $158,000 con IVA
+    price: 157983, // $188,000 con IVA
     unit: 'kit',
     description: 'Kit de 3 productos: Shampoo, Mascarilla y Loción Reparación Intensa'
   },
   {
     name: 'Tratamiento Revitalizante',
     category: 'Capilar',
-    price: 80672, // $96,000 con IVA
+    price: 98151, // $116,800 con IVA
     unit: 'kit',
     description: 'Kit de 2 productos: Shampoo y Loción Revitalizante'
   }

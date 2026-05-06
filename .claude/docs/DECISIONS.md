@@ -17,6 +17,26 @@ Append new decisions at the top. Include [SHARED] tag if it affects both nouvie-
 
 ---
 
+## 2026-04-21: Kit Reparación Intensa & Revitalizante price update [SHARED]
+
+**Context**: Follow-up to the morning session's ML-alignment update. Client confirmed new prices for the two kits that had been left pending: Reparación Intensa ($158,000 → $188,000) and Revitalizante ($96,000 → $116,800). This closes out the kit pricing discrepancy flagged in the earlier DECISIONS entry.
+**Options considered**: (A) Edit `add-treatment-bundles.ts` in place and re-run it, (B) Create a separate one-off update script and also fix the stale constants in `add-treatment-bundles.ts` so it stays consistent
+**Decision**: Option B. New script `scripts/update-kit-prices-apr2026.ts` following the `update-stock-feb2026.ts` pattern (name-based lookup, before/after logging, verification). Also updated constants in `add-treatment-bundles.ts` to match, so re-running it does not revert prices.
+**Trade-off**: Two scripts now contain the same prices — must update both if prices change again. Worth it because the dated script documents the change moment and is safely idempotent.
+**Affects**: `nouvie-sales/scripts/update-kit-prices-apr2026.ts` (new), `nouvie-sales/scripts/add-treatment-bundles.ts` (constants), `nouvie-web/lib/product-data.ts` (bundlePrice lines 328 and 362), `nouvie-sales/.claude/docs/HANDOFF.md` (client price table)
+
+---
+
+## 2026-04-21: Capilar price update — Mercado Libre alignment [SHARED]
+
+**Context**: Client provided new retail prices from their Mercado Libre listings. All capilar product prices increased significantly (shampoos +37%, mascarillas +42%, lociones +42%, Kit Suave y Liso +19%). Product names on ML differ from system names (e.g. "Molding" = "Locion", "Karite" = "Reparacion Intensa").
+**Options considered**: (A) Update only the 8 specific ML products, (B) Update all capilar products uniformly since the system uses uniform pricing per type
+**Decision**: Updated all capilar products uniformly — all shampoos to $68,000, all mascarillas to $88,000, all lociones to $78,000 (con IVA). Kit Suave y Liso to $188,000. PromoMix promo prices recalculated keeping the same 0.714 ratio. Kit Reparacion Intensa and Kit Revitalizante left unchanged (not in ML data).
+**Trade-off**: Kit Reparacion Intensa and Kit Revitalizante may need a separate update if the client provides new prices for those
+**Affects**: `scripts/verify-all-prices.ts`, `scripts/fix-capilar-products.ts`, `scripts/add-treatment-bundles.ts`, `lib/promomix-config.ts` (both projects), `nouvie-web/lib/product-data.ts`
+
+---
+
 ## 2026-04-14: Monthly orders view route structure
 
 **Context**: Needed a `/orders/[month]` route to view orders by month, but `/orders/[id]` already exists for order detail

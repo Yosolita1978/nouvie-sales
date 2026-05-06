@@ -15,6 +15,27 @@
 - Descargar facturas en PDF
 - Exportar pedidos a Excel
 
+## Precios Actualizados (Abril 2026)
+
+Los precios de todos los productos capilares fueron actualizados:
+
+| Producto                       | Precio Anterior | Precio Nuevo |
+|--------------------------------|-----------------|--------------|
+| Shampoos                       | $49,500         | $68,000      |
+| Mascarillas                    | $62,000         | $88,000      |
+| Lociones/Molding               | $55,000         | $78,000      |
+| Kit Suave y Liso               | $158,000        | $188,000     |
+| Kit Reparación Intensa         | $158,000        | $188,000     |
+| Kit Revitalizante (Hombre)     | $96,000         | $116,800     |
+
+Todos los precios incluyen IVA. Para que se reflejen en el sistema, ejecutar:
+```
+cd nouvie-sales
+npx tsx scripts/verify-all-prices.ts
+npx tsx scripts/add-treatment-bundles.ts
+npx tsx scripts/update-kit-prices-apr2026.ts
+```
+
 ## Qué NO Está Incluido
 
 - Editar productos (solo el desarrollador)
