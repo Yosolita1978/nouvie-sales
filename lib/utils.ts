@@ -125,6 +125,29 @@ export function relativeTime(date: Date | string): string {
 }
 
 // ============================================
+// MONTH FORMATTING
+// ============================================
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
+
+/**
+ * Turn a "YYYY-MM" key into a readable Spanish label.
+ *
+ * Examples:
+ *   formatMonthLabel("2026-05") → "Mayo 2026"
+ *   formatMonthLabel("2026-01") → "Enero 2026"
+ */
+export function formatMonthLabel(monthKey: string): string {
+  const [yearStr, monthStr] = monthKey.split('-')
+  const monthIndex = parseInt(monthStr, 10) - 1
+  if (monthIndex < 0 || monthIndex > 11) return monthKey
+  return `${MONTH_NAMES[monthIndex]} ${yearStr}`
+}
+
+// ============================================
 // ORDER NUMBER GENERATION
 // ============================================
 
