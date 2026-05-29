@@ -17,12 +17,13 @@ interface CreateCustomerBody {
 
 /**
  * GET /api/customers
- * 
- * Fetches customers from the database
- * 
+ *
+ * Fetches customers from the database, including each customer's most
+ * recent order and total order count (used on the customer cards).
+ *
  * Query Parameters:
  *   - search: Optional. Filter by name or cedula
- * 
+ *
  * Examples:
  *   GET /api/customers
  *   GET /api/customers?search=Maria
@@ -69,14 +70,47 @@ export async function GET(request: NextRequest) {
         address: true,
         city: true,
         active: true,
-        createdAt: true
+        createdAt: true,
+        // Most recent order for this customer (for the card summary)
+        orders: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            total: true,
+            paymentStatus: true,
+            createdAt: true
+          }
+        },
+        // Total number of orders this customer has
+        _count: {
+          select: { orders: true }
+        }
+      }
+    })
+
+    // Flatten each customer's latest order into a single `lastOrder` field
+    // and convert Decimal totals to plain numbers for JSON.
+    const serializedCustomers = customers.map((customer) => {
+      const { orders, _count, ...rest } = customer
+      const latest = orders[0]
+
+      return {
+        ...rest,
+        orderCount: _count.orders,
+        lastOrder: latest
+          ? {
+              total: Number(latest.total),
+              paymentStatus: latest.paymentStatus,
+              createdAt: latest.createdAt
+            }
+          : null
       }
     })
 
     return NextResponse.json({
       success: true,
-      data: customers,
-      count: customers.length
+      data: serializedCustomers,
+      count: serializedCustomers.length
     })
 
   } catch (error) {

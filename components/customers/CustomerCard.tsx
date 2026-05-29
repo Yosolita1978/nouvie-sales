@@ -4,11 +4,24 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui'
 import { CustomerForm } from './CustomerForm'
+import { formatCOP, formatDate } from '@/lib/utils'
 import type { CustomerListItem } from '@/types'
 
 interface CustomerCardProps {
   customer: CustomerListItem
   onCustomerUpdated?: (updatedCustomer: CustomerListItem) => void
+}
+
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  pending: 'Pendiente',
+  partial: 'Parcial',
+  paid: 'Pagado'
+}
+
+const PAYMENT_STATUS_BADGES: Record<string, string> = {
+  pending: 'badge-warning',
+  partial: 'badge-info',
+  paid: 'badge-success'
 }
 
 export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps) {
@@ -112,6 +125,34 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
                 </svg>
                 <span>{currentCustomer.city}</span>
               </div>
+            )}
+          </div>
+
+          {/* Latest order summary */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            {currentCustomer.lastOrder ? (
+              <div className="space-y-1">
+                <p className="text-xs text-gray-500">
+                  Último pedido · {formatDate(currentCustomer.lastOrder.createdAt)}
+                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-nouvie-blue">
+                    {formatCOP(currentCustomer.lastOrder.total)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={PAYMENT_STATUS_BADGES[currentCustomer.lastOrder.paymentStatus]}>
+                      {PAYMENT_STATUS_LABELS[currentCustomer.lastOrder.paymentStatus]}
+                    </span>
+                    {currentCustomer.orderCount != null && (
+                      <span className="text-xs text-gray-400">
+                        {currentCustomer.orderCount} pedido{currentCustomer.orderCount !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Sin pedidos</p>
             )}
           </div>
         </Link>

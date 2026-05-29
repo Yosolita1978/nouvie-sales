@@ -188,8 +188,15 @@ export interface User {
 // API RESPONSE TYPES FOR CUSTOMERS
 // ============================================
 
-// What the GET /api/customers endpoint returns for each customer
-export interface CustomerListItem {
+// The latest order summary shown on each customer card
+export interface CustomerLastOrder {
+    total: number
+    paymentStatus: string
+    createdAt: Date | string
+  }
+
+  // What the GET /api/customers endpoint returns for each customer
+  export interface CustomerListItem {
     id: string
     documentType: string
     cedula: string
@@ -200,6 +207,9 @@ export interface CustomerListItem {
     city: string | null
     active: boolean
     createdAt: Date | string
+    // Order summary — only present on the GET /api/customers list response
+    orderCount?: number
+    lastOrder?: CustomerLastOrder | null
   }
   
   // Full API response structure
