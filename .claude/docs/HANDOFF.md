@@ -14,6 +14,7 @@
 - Cambiar estado de pago y envío
 - Descargar facturas en PDF
 - Exportar pedidos a Excel
+- Ver estadísticas de productos y clientes más activos por mes
 
 ## Precios Actualizados (Abril 2026)
 
@@ -78,6 +79,20 @@ Desde la pantalla principal de Pedidos, hay una sección "Ver pedidos por mes" q
 3. Se puede buscar por numero de pedido o cliente
 4. El boton "Descargar Mes" exporta los pedidos de ese mes a Excel
 5. Las flechas < > permiten navegar al mes anterior o siguiente
+
+---
+
+## Estadísticas
+
+En el menú lateral hay una sección **"Estadísticas"** (visible en computador y tablet). Muestra, para el mes que elijas en el menú desplegable de arriba:
+
+1. **Productos más pedidos** — los productos con más unidades vendidas en el mes, con el dinero que generaron.
+2. **Mejores clientes** — los clientes que más compraron en el mes, con su total y número de pedidos.
+3. **Ventas por mes** — los ingresos de los últimos 12 meses, para ver cómo evoluciona el negocio. El mes seleccionado aparece resaltado.
+
+Las barras de colores son proporcionales: la más larga es la de mayor valor. Si un mes no tiene pedidos, las dos primeras secciones aparecen vacías pero la gráfica de "Ventas por mes" sigue mostrando la tendencia.
+
+> Nota: en la lista de **Clientes**, cada tarjeta ahora muestra también el **último pedido** del cliente (fecha, total y estado de pago) y cuántos pedidos tiene en total.
 
 ---
 

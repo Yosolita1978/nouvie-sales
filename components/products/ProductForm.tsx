@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatCOP } from '@/lib/utils'
 
 interface ProductFormData {
@@ -15,6 +15,14 @@ interface ProductFormData {
 interface ProductFormProps {
   onSuccess: (productId: string) => void
   onCancel: () => void
+}
+
+// Status banner shown at the top of the form.
+// An "error" banner can optionally offer a "Reintentar" (retry) button.
+interface FormBanner {
+  type: 'error' | 'success'
+  message: string
+  canRetry: boolean
 }
 
 const CATEGORIES = [
@@ -47,8 +55,21 @@ const initialFormData: ProductFormData = {
 export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
   const [errors, setErrors] = useState<Partial<ProductFormData>>({})
-  const [apiError, setApiError] = useState<string | null>(null)
+  const [banner, setBanner] = useState<FormBanner | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const bannerRef = useRef<HTMLDivElement>(null)
+
+  // Whenever a banner appears, scroll it into view so it can't be missed
+  // (important inside the scrollable mobile modal).
+  useEffect(() => {
+    if (banner) {
+      bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [banner])
+
+  const isSuccess = banner?.type === 'success'
+  const formDisabled = loading || isSuccess
 
   function validate(): boolean {
     const newErrors: Partial<ProductFormData> = {}
@@ -100,16 +121,14 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
     if (errors[name as keyof ProductFormData]) {
       setErrors(prev => ({ ...prev, [name]: undefined }))
     }
-    setApiError(null)
+    setBanner(null)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!validate()) return
-
+  // Sends the data to the API. Kept separate from handleSubmit so the
+  // "Reintentar" button can re-send the same data without re-validating.
+  async function saveProduct() {
     setLoading(true)
-    setApiError(null)
+    setBanner(null)
 
     try {
       const response = await fetch('/api/products', {
@@ -129,20 +148,49 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
 
       if (!response.ok) {
         if (data.errors) {
-          setApiError(data.errors.join(', '))
+          setBanner({ type: 'error', message: data.errors.join('. '), canRetry: false })
         } else {
-          setApiError(data.message || 'Error al crear el producto')
+          // Server or unknown error — worth retrying.
+          setBanner({
+            type: 'error',
+            message: data.message || data.error || 'No se pudo crear el producto.',
+            canRetry: true
+          })
         }
         return
       }
 
-      onSuccess(data.data.id)
+      const newProductId: string = data.data.id
+
+      setBanner({ type: 'success', message: 'Producto creado exitosamente.', canRetry: false })
+
+      // Brief pause so the success message is seen before the modal closes.
+      window.setTimeout(() => onSuccess(newProductId), 900)
     } catch (err) {
       console.error('Error creating product:', err)
-      setApiError('Error de conexión. Intenta de nuevo.')
+      setBanner({
+        type: 'error',
+        message: 'Error de conexión. Revisa tu internet e intenta de nuevo.',
+        canRetry: true
+      })
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (!validate()) {
+      setBanner({
+        type: 'error',
+        message: 'Revisa los campos marcados en rojo y vuelve a intentar.',
+        canRetry: false
+      })
+      return
+    }
+
+    saveProduct()
   }
 
   const pricePreview = formData.price
@@ -151,9 +199,43 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {apiError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {apiError}
+      {/* Loud, scroll-into-view status banner */}
+      {banner && (
+        <div
+          ref={bannerRef}
+          role="alert"
+          className={
+            banner.type === 'success'
+              ? 'rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3'
+              : 'rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3'
+          }
+        >
+          <div className="flex items-start gap-3">
+            {banner.type === 'success' ? (
+              <svg className="h-6 w-6 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <div className="flex-1">
+              <p className={banner.type === 'success' ? 'font-semibold text-green-800' : 'font-semibold text-red-800'}>
+                {banner.message}
+              </p>
+              {banner.canRetry && (
+                <button
+                  type="button"
+                  onClick={saveProduct}
+                  disabled={loading}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-50"
+                >
+                  {loading ? 'Reintentando...' : 'Reintentar'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -169,7 +251,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
           onChange={handleChange}
           className={errors.name ? 'input-error' : 'input'}
           placeholder="Shampoo Anticaspa 500ml"
-          disabled={loading}
+          disabled={formDisabled}
         />
         {errors.name && <p className="error-message">{errors.name}</p>}
       </div>
@@ -185,7 +267,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
             value={formData.category}
             onChange={handleChange}
             className={errors.category ? 'select border-red-500' : 'select'}
-            disabled={loading}
+            disabled={formDisabled}
           >
             {CATEGORIES.map(cat => (
               <option key={cat.value} value={cat.value}>
@@ -206,7 +288,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
             value={formData.unit}
             onChange={handleChange}
             className={errors.unit ? 'select border-red-500' : 'select'}
-            disabled={loading}
+            disabled={formDisabled}
           >
             {UNITS.map(unit => (
               <option key={unit.value} value={unit.value}>
@@ -233,7 +315,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
           onChange={handleChange}
           className={errors.price ? 'input-error' : 'input'}
           placeholder="45000"
-          disabled={loading}
+          disabled={formDisabled}
         />
         {pricePreview && !errors.price && (
           <p className="text-sm text-gray-500 mt-1">{pricePreview}</p>
@@ -256,7 +338,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
             onChange={handleChange}
             className={errors.stock ? 'input-error' : 'input'}
             placeholder="0"
-            disabled={loading}
+            disabled={formDisabled}
           />
           {errors.stock && <p className="error-message">{errors.stock}</p>}
         </div>
@@ -275,7 +357,7 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
             onChange={handleChange}
             className={errors.minStock ? 'input-error' : 'input'}
             placeholder="5"
-            disabled={loading}
+            disabled={formDisabled}
           />
           <p className="text-xs text-gray-500 mt-1">
             Recibirás alertas cuando el stock baje de este número
@@ -295,10 +377,15 @@ export function ProductForm({ onSuccess, onCancel }: ProductFormProps) {
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={formDisabled}
           className="flex-1 btn-primary"
         >
-          {loading ? 'Guardando...' : 'Guardar Producto'}
+          {loading
+            ? 'Guardando...'
+            : isSuccess
+              ? '¡Guardado!'
+              : 'Guardar Producto'
+          }
         </button>
       </div>
     </form>

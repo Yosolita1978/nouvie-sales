@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { CustomerListItem } from '@/types'
 
 type DocumentType = 'cedula' | 'nit' | 'cedula_extranjeria'
@@ -26,6 +26,14 @@ interface CustomerFormProps {
   onCancel: () => void
   customer?: CustomerListItem | null
   mode?: 'create' | 'edit'
+}
+
+// Status banner shown at the top of the form.
+// An "error" banner can optionally offer a "Reintentar" (retry) button.
+interface FormBanner {
+  type: 'error' | 'success'
+  message: string
+  canRetry: boolean
 }
 
 function getInitialFormData(customer?: CustomerListItem | null): CustomerFormData {
@@ -55,8 +63,21 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
   const [formData, setFormData] = useState<CustomerFormData>(() => getInitialFormData(customer))
   const isEditMode = mode === 'edit'
   const [errors, setErrors] = useState<Partial<CustomerFormData>>({})
-  const [apiError, setApiError] = useState<string | null>(null)
+  const [banner, setBanner] = useState<FormBanner | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const bannerRef = useRef<HTMLDivElement>(null)
+
+  // Whenever a banner appears, scroll it into view so it can't be missed
+  // (important inside the scrollable mobile modal).
+  useEffect(() => {
+    if (banner) {
+      bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [banner])
+
+  const isSuccess = banner?.type === 'success'
+  const formDisabled = loading || isSuccess
 
   function validate(): boolean {
     const newErrors: Partial<CustomerFormData> = {}
@@ -93,16 +114,14 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
     if (errors[name as keyof CustomerFormData]) {
       setErrors(prev => ({ ...prev, [name]: undefined }))
     }
-    setApiError(null)
+    setBanner(null)
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!validate()) return
-
+  // Sends the data to the API. Kept separate from handleSubmit so the
+  // "Reintentar" button can re-send the same data without re-validating.
+  async function saveCustomer() {
     setLoading(true)
-    setApiError(null)
+    setBanner(null)
 
     try {
       const url = isEditMode ? `/api/customers/${customer?.id}` : '/api/customers'
@@ -118,29 +137,118 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
 
       if (!response.ok) {
         if (response.status === 409) {
-          setApiError(`Ya existe un cliente con la cédula ${formData.cedula}`)
+          setBanner({
+            type: 'error',
+            message: `Ya existe un cliente con la cédula ${formData.cedula}.`,
+            canRetry: false
+          })
         } else if (data.errors) {
-          setApiError(data.errors.join(', '))
+          setBanner({ type: 'error', message: data.errors.join('. '), canRetry: false })
         } else {
-          setApiError(data.message || data.error || (isEditMode ? 'Error al actualizar el cliente' : 'Error al crear el cliente'))
+          // Server or unknown error — worth retrying.
+          setBanner({
+            type: 'error',
+            message:
+              data.message ||
+              data.error ||
+              (isEditMode ? 'No se pudo actualizar el cliente.' : 'No se pudo crear el cliente.'),
+            canRetry: true
+          })
         }
         return
       }
 
-      onSuccess(data.data)
+      // Saved. Re-read the customer from the API to confirm what actually
+      // persisted, so what we show equals what is in the database.
+      let savedCustomer: CustomerListItem = data.data
+      if (isEditMode && customer?.id) {
+        try {
+          const verify = await fetch(`/api/customers/${customer.id}`)
+          if (verify.ok) {
+            const verifyData = await verify.json()
+            if (verifyData.success) {
+              savedCustomer = verifyData.data
+            }
+          }
+        } catch {
+          // If the confirmation read fails, fall back to the save response.
+        }
+      }
+
+      setBanner({
+        type: 'success',
+        message: isEditMode ? 'Cliente actualizado exitosamente.' : 'Cliente creado exitosamente.',
+        canRetry: false
+      })
+
+      // Brief pause so the success message is seen before the modal closes.
+      window.setTimeout(() => onSuccess(savedCustomer), 900)
     } catch (err) {
       console.error(isEditMode ? 'Error updating customer:' : 'Error creating customer:', err)
-      setApiError('Error de conexión. Intenta de nuevo.')
+      setBanner({
+        type: 'error',
+        message: 'Error de conexión. Revisa tu internet e intenta de nuevo.',
+        canRetry: true
+      })
     } finally {
       setLoading(false)
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (!validate()) {
+      setBanner({
+        type: 'error',
+        message: 'Revisa los campos marcados en rojo y vuelve a intentar.',
+        canRetry: false
+      })
+      return
+    }
+
+    saveCustomer()
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {apiError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {apiError}
+      {/* Loud, scroll-into-view status banner */}
+      {banner && (
+        <div
+          ref={bannerRef}
+          role="alert"
+          className={
+            banner.type === 'success'
+              ? 'rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3'
+              : 'rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3'
+          }
+        >
+          <div className="flex items-start gap-3">
+            {banner.type === 'success' ? (
+              <svg className="h-6 w-6 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <div className="flex-1">
+              <p className={banner.type === 'success' ? 'font-semibold text-green-800' : 'font-semibold text-red-800'}>
+                {banner.message}
+              </p>
+              {banner.canRetry && (
+                <button
+                  type="button"
+                  onClick={saveCustomer}
+                  disabled={loading}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-50"
+                >
+                  {loading ? 'Reintentando...' : 'Reintentar'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -154,7 +262,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
               key={type.value}
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, documentType: type.value }))}
-              disabled={loading}
+              disabled={formDisabled}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 formData.documentType === type.value
                   ? 'bg-nouvie-blue text-white'
@@ -180,7 +288,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className={errors.cedula ? 'input-error' : 'input'}
           placeholder={formData.documentType === 'nit' ? '900123456' : formData.documentType === 'cedula_extranjeria' ? 'Número de documento' : '1234567890'}
-          disabled={loading}
+          disabled={formDisabled}
         />
         {errors.cedula && <p className="error-message">{errors.cedula}</p>}
       </div>
@@ -197,7 +305,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className={errors.name ? 'input-error' : 'input'}
           placeholder="María García López"
-          disabled={loading}
+          disabled={formDisabled}
         />
         {errors.name && <p className="error-message">{errors.name}</p>}
       </div>
@@ -214,7 +322,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className={errors.email ? 'input-error' : 'input'}
           placeholder="maria@ejemplo.com"
-          disabled={loading}
+          disabled={formDisabled}
         />
         {errors.email && <p className="error-message">{errors.email}</p>}
       </div>
@@ -232,7 +340,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className={errors.phone ? 'input-error' : 'input'}
           placeholder="300 123 4567"
-          disabled={loading}
+          disabled={formDisabled}
         />
         {errors.phone && <p className="error-message">{errors.phone}</p>}
       </div>
@@ -249,7 +357,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className="input"
           placeholder="Calle 123 #45-67"
-          disabled={loading}
+          disabled={formDisabled}
         />
       </div>
 
@@ -265,7 +373,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
           onChange={handleChange}
           className="input"
           placeholder="Bogotá"
-          disabled={loading}
+          disabled={formDisabled}
         />
       </div>
 
@@ -280,12 +388,14 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
         </button>
         <button
           type="submit"
-          disabled={loading}
+          disabled={formDisabled}
           className="flex-1 btn-primary"
         >
           {loading
             ? (isEditMode ? 'Actualizando...' : 'Guardando...')
-            : (isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente')
+            : isSuccess
+              ? '¡Guardado!'
+              : (isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente')
           }
         </button>
       </div>

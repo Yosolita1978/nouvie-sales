@@ -39,6 +39,10 @@ export default function ProductDetailPage() {
   const [priceValue, setPriceValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // canRetry is true only for connection/server errors (worth retrying);
+  // false for validation errors (the value must be fixed first).
+  const [canRetry, setCanRetry] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
 
   const fetchProduct = useCallback(async () => {
     setLoading(true)
@@ -108,23 +112,35 @@ export default function ProductDetailPage() {
   function startEditStock() {
     setStockValue(product?.stock?.toString() || '0')
     setSaveError(null)
+    setCanRetry(false)
+    setSaveSuccess(null)
     setEditingStock(true)
   }
 
   function startEditPrice() {
     setPriceValue(product?.price?.toString() || '0')
     setSaveError(null)
+    setCanRetry(false)
+    setSaveSuccess(null)
     setEditingPrice(true)
+  }
+
+  // Shows a brief "saved" confirmation that auto-hides.
+  function showSaved() {
+    setSaveSuccess('Cambios guardados')
+    window.setTimeout(() => setSaveSuccess(null), 2500)
   }
 
   async function handleSaveStock() {
     const num = parseInt(stockValue, 10)
     if (isNaN(num) || num < 0) {
       setSaveError('Stock debe ser un número mayor o igual a 0')
+      setCanRetry(false)
       return
     }
     setSaving(true)
     setSaveError(null)
+    setCanRetry(false)
     try {
       const response = await fetch('/api/products/' + productId, {
         method: 'PATCH',
@@ -133,13 +149,17 @@ export default function ProductDetailPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setSaveError(data.error || 'Error al guardar')
+        // Server error — worth retrying.
+        setSaveError(data.error || data.message || 'No se pudo guardar el stock.')
+        setCanRetry(true)
         return
       }
       setProduct(data.data)
       setEditingStock(false)
+      showSaved()
     } catch {
-      setSaveError('Error de conexión')
+      setSaveError('Error de conexión. Revisa tu internet e intenta de nuevo.')
+      setCanRetry(true)
     } finally {
       setSaving(false)
     }
@@ -149,10 +169,12 @@ export default function ProductDetailPage() {
     const num = parseInt(priceValue.replace(/[^\d]/g, ''), 10)
     if (isNaN(num) || num < 0) {
       setSaveError('Precio debe ser un número mayor o igual a 0')
+      setCanRetry(false)
       return
     }
     setSaving(true)
     setSaveError(null)
+    setCanRetry(false)
     try {
       const response = await fetch('/api/products/' + productId, {
         method: 'PATCH',
@@ -161,16 +183,50 @@ export default function ProductDetailPage() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setSaveError(data.error || 'Error al guardar')
+        // Server error — worth retrying.
+        setSaveError(data.error || data.message || 'No se pudo guardar el precio.')
+        setCanRetry(true)
         return
       }
       setProduct(data.data)
       setEditingPrice(false)
+      showSaved()
     } catch {
-      setSaveError('Error de conexión')
+      setSaveError('Error de conexión. Revisa tu internet e intenta de nuevo.')
+      setCanRetry(true)
     } finally {
       setSaving(false)
     }
+  }
+
+  // Re-sends the save for whichever field is currently being edited.
+  function retrySave() {
+    if (editingStock) {
+      handleSaveStock()
+    } else if (editingPrice) {
+      handleSavePrice()
+    }
+  }
+
+  // Louder error box (with a retry button for connection/server errors),
+  // shared by the inline stock and price editors.
+  function renderSaveFeedback() {
+    if (!saveError) return null
+    return (
+      <div role="alert" className="rounded-lg border-2 border-red-300 bg-red-50 px-3 py-2">
+        <p className="text-sm font-semibold text-red-800">{saveError}</p>
+        {canRetry && (
+          <button
+            type="button"
+            onClick={retrySave}
+            disabled={saving}
+            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 active:bg-red-800 disabled:opacity-50"
+          >
+            {saving ? 'Reintentando...' : 'Reintentar'}
+          </button>
+        )}
+      </div>
+    )
   }
 
   function getStockStatus() {
@@ -247,6 +303,19 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Transient "saved" confirmation */}
+      {saveSuccess && (
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-lg border-2 border-green-300 bg-green-50 px-4 py-3"
+        >
+          <svg className="h-6 w-6 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <p className="font-semibold text-green-800">{saveSuccess}</p>
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -317,10 +386,10 @@ export default function ProductDetailPage() {
                         autoFocus
                       />
                     </div>
-                    {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+                    {renderSaveFeedback()}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => { setEditingPrice(false); setSaveError(null) }}
+                        onClick={() => { setEditingPrice(false); setSaveError(null); setCanRetry(false) }}
                         disabled={saving}
                         className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
                       >
@@ -390,10 +459,10 @@ export default function ProductDetailPage() {
                       />
                       <span className="text-gray-500">{product.unit}</span>
                     </div>
-                    {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+                    {renderSaveFeedback()}
                     <div className="flex gap-2">
                       <button
-                        onClick={() => { setEditingStock(false); setSaveError(null) }}
+                        onClick={() => { setEditingStock(false); setSaveError(null); setCanRetry(false) }}
                         disabled={saving}
                         className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
                       >

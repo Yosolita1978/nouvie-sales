@@ -17,6 +17,16 @@ Append new decisions at the top. Include [SHARED] tag if it affects both nouvie-
 
 ---
 
+## 2026-05-29: Estadísticas analytics view — queries + CSS bars (n8n groundwork)
+
+**Context**: Client wanted an at-a-glance view of best-selling products and top customers, with AI alerts (via n8n) as a planned second step. Nothing like it existed; the dashboard only showed today's counts.
+**Options considered**: (A) Per-metric API routes vs one combined `/api/stats`; (B) Visuals via a chart library (recharts) vs plain CSS bars; (C) all-time totals vs a month filter.
+**Decision**: One combined read-only `GET /api/stats?month=YYYY-MM` (parallel `groupBy` queries, same pattern as `/api/dashboard`); plain Tailwind CSS bars (no new dependency, readable for a non-tech admin); month dropdown reusing the existing `/api/orders/months` endpoint. `salesByMonth` deliberately ignores the month filter — a trend needs many months.
+**Trade-off**: CSS bars are less fancy than real charts; the single endpoint returns more data than any one widget needs. Both acceptable for v1 and keep the surface small for n8n to consume later.
+**Affects**: `app/api/stats/route.ts` (new), `app/(dashboard)/stats/page.tsx` (new), `lib/utils.ts` (`formatMonthLabel`), `components/layout/Sidebar.tsx` (nav), `.claude/docs/HANDOFF.md` (Estadísticas section)
+
+---
+
 ## 2026-04-21: Kit Reparación Intensa & Revitalizante price update [SHARED]
 
 **Context**: Follow-up to the morning session's ML-alignment update. Client confirmed new prices for the two kits that had been left pending: Reparación Intensa ($158,000 → $188,000) and Revitalizante ($96,000 → $116,800). This closes out the kit pricing discrepancy flagged in the earlier DECISIONS entry.
