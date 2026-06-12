@@ -65,7 +65,7 @@ async function backupOrders() {
       orderNumber: order.orderNumber,
       orderDate: order.orderDate.toISOString(),
       customerName: order.customer.name,
-      customerCedula: order.customer.cedula,
+      customerCedula: order.customer.cedula || '',
       productsSummary: productsSummary,
       subtotal: order.subtotal.toString(),
       tax: order.tax.toString(),

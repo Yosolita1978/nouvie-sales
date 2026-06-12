@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
         orderNumber: order.orderNumber,
         orderDate: new Date(order.orderDate),
         customerName: order.customer.name,
-        customerCedula: order.customer.cedula,
+        customerCedula: order.customer.cedula || '',
         customerPhone: order.customer.phone || '',
         products: productsSummary,
         subtotal: Number(order.subtotal),

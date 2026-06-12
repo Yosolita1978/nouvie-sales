@@ -19,7 +19,7 @@ export interface User {
   export interface Customer {
     id: string
     documentType: string    // "cedula", "nit", "cedula_extranjeria"
-    cedula: string          // Document number
+    cedula: string | null   // Document number — null for informal sales (no factura)
     name: string
     email: string | null
     phone: string
@@ -107,12 +107,12 @@ export interface User {
   
   // Data needed to create a new customer
   export interface CreateCustomerInput {
-    cedula: string
+    cedula?: string | null
     name: string
-    email: string
+    email?: string | null
     phone: string
-    address: string
-    city: string
+    address?: string
+    city?: string
   }
   
   // Data needed to create a new product
@@ -199,7 +199,7 @@ export interface CustomerLastOrder {
   export interface CustomerListItem {
     id: string
     documentType: string
-    cedula: string
+    cedula: string | null
     name: string
     email: string | null
     phone: string

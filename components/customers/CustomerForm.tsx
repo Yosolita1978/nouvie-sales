@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { CustomerListItem } from '@/types'
+import { customerCreateSchema, zodFieldErrors } from '@/lib/validation/customer'
 
 type DocumentType = 'cedula' | 'nit' | 'cedula_extranjeria'
 
@@ -40,7 +41,7 @@ function getInitialFormData(customer?: CustomerListItem | null): CustomerFormDat
   if (customer) {
     return {
       documentType: (customer.documentType as DocumentType) || 'cedula',
-      cedula: customer.cedula,
+      cedula: customer.cedula || '',
       name: customer.name,
       email: customer.email || '',
       phone: customer.phone,
@@ -79,33 +80,17 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
   const isSuccess = banner?.type === 'success'
   const formDisabled = loading || isSuccess
 
+  // Client-side validation reuses the shared zod schema, so the rules here
+  // can never drift from the server. name + phone are required; cedula/email
+  // are optional and only format-checked when a value is entered.
   function validate(): boolean {
-    const newErrors: Partial<CustomerFormData> = {}
-
-    if (!formData.cedula.trim()) {
-      newErrors.cedula = 'Número de documento es requerido'
-    } else if (formData.documentType === 'cedula' && !/^\d{6,10}$/.test(formData.cedula.trim())) {
-      newErrors.cedula = 'Cédula debe tener entre 6 y 10 dígitos'
-    } else if (formData.documentType === 'nit' && !/^\d{9,10}$/.test(formData.cedula.trim())) {
-      newErrors.cedula = 'NIT debe tener entre 9 y 10 dígitos'
+    const result = customerCreateSchema.safeParse(formData)
+    if (result.success) {
+      setErrors({})
+      return true
     }
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Nombre es requerido'
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email es requerido'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      newErrors.email = 'Email no es válido'
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Teléfono es requerido'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    setErrors(zodFieldErrors(result.error) as Partial<CustomerFormData>)
+    return false
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -277,7 +262,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
 
       <div>
         <label htmlFor="cedula" className="label">
-          {formData.documentType === 'nit' ? 'NIT' : formData.documentType === 'cedula_extranjeria' ? 'Cédula de Extranjería' : 'Cédula'} <span className="text-red-500">*</span>
+          {formData.documentType === 'nit' ? 'NIT' : formData.documentType === 'cedula_extranjeria' ? 'Cédula de Extranjería' : 'Cédula'} <span className="text-gray-400 text-sm font-normal">(opcional)</span>
         </label>
         <input
           id="cedula"
@@ -312,7 +297,7 @@ export function CustomerForm({ onSuccess, onCancel, customer, mode = 'create' }:
 
       <div>
         <label htmlFor="email" className="label">
-          Email <span className="text-red-500">*</span>
+          Email <span className="text-gray-400 text-sm font-normal">(opcional)</span>
         </label>
         <input
           id="email"

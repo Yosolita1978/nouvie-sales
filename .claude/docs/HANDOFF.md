@@ -96,6 +96,37 @@ Las barras de colores son proporcionales: la más larga es la de mayor valor. Si
 
 ---
 
+## Avisos al Guardar (Clientes y Productos) — Junio 2026
+
+Al editar un **cliente** o un **producto**, el formulario ahora avisa claramente qué pasó:
+
+- **Verde "Guardado ✓"**: los cambios quedaron grabados en el sistema.
+- **Rojo (con borde)**: algo falló. El aviso aparece siempre a la vista (ya no queda escondido al hacer scroll).
+  - Si el error fue de **conexión o del servidor**, aparece un botón **"Reintentar"** para volver a enviar sin volver a escribir.
+  - Si falta un dato o está mal, el aviso indica qué campo corregir.
+
+> Si después de editar un cliente NO ves el aviso verde "Guardado", el cambio no se grabó: revisa el aviso rojo y usa "Reintentar".
+
+---
+
+## Clientes sin cédula y facturas — Junio 2026
+
+Ahora un cliente se puede crear con **solo nombre y teléfono**. La **cédula y el email son opcionales**.
+
+- Sirve para registrar rápido a un cliente de venta informal (por WhatsApp) sin pedirle la cédula.
+- Puedes registrar varios clientes sin cédula sin problema.
+- Si más adelante necesitas la cédula, editas el cliente y la agregas.
+
+**Regla importante: sin cédula no hay factura.**
+
+- A un cliente **sin cédula** se le puede crear el pedido normal, marcar pagos, envíos, etc. — todo funciona igual.
+- Pero **no se puede generar la factura**: ni el **PDF** ni el **número de factura**. En el pedido aparece el motivo: *"No se puede generar factura: el cliente no tiene cédula registrada."* y el botón **PDF** queda deshabilitado.
+- Para facturar: edita el cliente, agrégale la **cédula**, y luego ya puedes descargar el PDF y asignar el número de factura.
+
+**Protección extra**: si un cliente **ya tiene facturas** emitidas, el sistema **no te deja quitarle la cédula** (mostraría: *"No se puede quitar la cédula: el cliente ya tiene facturas emitidas."*).
+
+---
+
 ## Tareas Comunes
 
 ### Marcar pedido como pagado

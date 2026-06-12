@@ -57,7 +57,7 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
           {/* Cedula Badge */}
           <div className="mt-2">
             <span className="badge-info">
-              CC: {currentCustomer.cedula}
+              {currentCustomer.cedula ? `CC: ${currentCustomer.cedula}` : 'Sin cédula'}
             </span>
           </div>
 

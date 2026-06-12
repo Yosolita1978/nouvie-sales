@@ -35,6 +35,7 @@ interface Order {
   customer: {
     id: string
     name: string
+    cedula: string | null
     phone: string | null
     address: string | null
   } | null
@@ -296,6 +297,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
   const deleteMessage = `¿Estás segura de que quieres eliminar el pedido ${order.orderNumber}? Esta acción no se puede deshacer.`
 
+  // "No cédula, no factura": the PDF (factura) and the invoice number can only
+  // be issued when the customer has a cédula registered.
+  const canInvoice = Boolean(order.customer?.cedula)
+  const noInvoiceReason = 'No se puede generar factura: el cliente no tiene cédula registrada.'
+
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
@@ -346,8 +352,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </Link>
           <button
             onClick={handleDownloadPdf}
-            disabled={downloadingPdf}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy active:bg-nouvie-navy transition-colors disabled:opacity-50"
+            disabled={downloadingPdf || !canInvoice}
+            title={!canInvoice ? noInvoiceReason : undefined}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-nouvie-blue text-white rounded-lg hover:bg-nouvie-navy active:bg-nouvie-navy transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {downloadingPdf ? (
               <>
@@ -408,7 +415,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-gray-900">Número de Factura</h2>
-            {!editingInvoice && (
+            {!editingInvoice && canInvoice && (
               <button
                 onClick={() => setEditingInvoice(true)}
                 className="text-sm text-nouvie-blue hover:underline py-1 px-2"
@@ -418,7 +425,11 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {editingInvoice ? (
+          {!canInvoice ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2" title={noInvoiceReason}>
+              {noInvoiceReason}
+            </p>
+          ) : editingInvoice ? (
             <div className="space-y-3">
               <input
                 type="text"

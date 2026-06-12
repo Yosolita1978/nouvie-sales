@@ -29,6 +29,20 @@ export async function GET(
       )
     }
 
+    // "No cédula, no factura": the PDF is the factura, so block it when the
+    // customer has no cédula. Capturing it in a local also narrows the type
+    // to string for the document below.
+    const cedula = order.customer.cedula
+    if (!cedula) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se puede generar factura: el cliente no tiene cédula registrada.'
+        },
+        { status: 400 }
+      )
+    }
+
     const orderData = {
       orderNumber: order.orderNumber,
       orderType: order.orderType,
@@ -40,7 +54,7 @@ export async function GET(
       notes: order.notes,
       customer: {
         name: order.customer.name,
-        cedula: order.customer.cedula,
+        cedula,
         phone: order.customer.phone,
         address: order.customer.address,
         city: order.customer.city,

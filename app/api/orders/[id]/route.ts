@@ -111,10 +111,11 @@ export async function PATCH(
     const body: UpdateOrderBody = await request.json()
     const { paymentStatus, shippingStatus, invoiceNumber, customerId, items, paymentMethod, orderType, discount, notes } = body
 
-    // Fetch current order with items
+    // Fetch current order with items and customer
     const currentOrder = await prisma.order.findUnique({
       where: { id },
       include: {
+        customer: true,
         items: {
           include: {
             product: true
@@ -133,7 +134,10 @@ export async function PATCH(
     // Detect if this is a full order edit (items provided)
     const isFullEdit = items !== undefined
 
-    // Validate customer if changing
+    // Resolve the customer this order will belong to after the update.
+    // If customerId is changing, validate and use the new customer; otherwise
+    // keep the order's current customer.
+    let selectedCustomer = currentOrder.customer
     if (customerId) {
       const customer = await prisma.customer.findUnique({ where: { id: customerId } })
       if (!customer) {
@@ -142,6 +146,19 @@ export async function PATCH(
           { status: 404 }
         )
       }
+      selectedCustomer = customer
+    }
+
+    // "No cédula, no factura": block assigning a factura number when the
+    // customer has no cédula. Clearing the number (empty) is always allowed.
+    if (typeof invoiceNumber === 'string' && invoiceNumber.trim() !== '' && !selectedCustomer.cedula) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se puede generar factura: el cliente no tiene cédula registrada.'
+        },
+        { status: 400 }
+      )
     }
 
     // Build update data for order fields

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { customerUpdateSchema, zodErrorMessages } from '@/lib/validation/customer'
 
 /**
  * GET /api/customers/[id]
- * 
+ *
  * Fetches a single customer by ID
  */
 export async function GET(
@@ -68,8 +70,10 @@ export async function GET(
 /**
  * PATCH /api/customers/[id]
  *
- * Updates a customer's information
- * Cedula cannot be changed (it's the unique identifier)
+ * Updates a customer. Only the fields present in the request body are changed.
+ * Empty cedula/email are stored as NULL (never ""). Clearing the cédula is
+ * blocked when the customer already has facturas, to preserve the
+ * "no cédula, no factura" invariant after the fact.
  */
 export async function PATCH(
   request: NextRequest,
@@ -77,7 +81,19 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
+
+    // Validate + normalize with the shared zod schema. undefined = field not
+    // sent (leave as-is); null = explicitly clear an optional field.
+    const parsed = customerUpdateSchema.safeParse(await request.json())
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, errors: zodErrorMessages(parsed.error) },
+        { status: 400 }
+      )
+    }
+
+    const data = parsed.data
 
     // Check if customer exists
     const existingCustomer = await prisma.customer.findUnique({
@@ -91,72 +107,39 @@ export async function PATCH(
       )
     }
 
-    // Validate required fields
-    const errors: string[] = []
-
-    if (body.name !== undefined && !body.name.trim()) {
-      errors.push('Nombre es requerido')
-    }
-
-    if (body.email !== undefined && body.email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(body.email.trim())) {
-        errors.push('Email no es válido')
+    // Point 4: do not allow removing the cédula from a customer who already
+    // has facturas emitted — that would orphan a factura on a cédula-less
+    // customer and break the invariant.
+    if (data.cedula === null && existingCustomer.cedula) {
+      const facturaCount = await prisma.order.count({
+        where: { customerId: id, invoiceNumber: { not: null } }
+      })
+      if (facturaCount > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'No se puede quitar la cédula: el cliente ya tiene facturas emitidas.'
+          },
+          { status: 400 }
+        )
       }
     }
 
-    if (body.phone !== undefined && !body.phone.trim()) {
-      errors.push('Teléfono es requerido')
-    }
+    // Build update data — only include fields that were actually sent.
+    // null is passed through for cedula/email (clears them); never "".
+    const updateData: Prisma.CustomerUpdateInput = {}
 
-    if (body.documentType !== undefined) {
-      const validTypes = ['cedula', 'nit', 'cedula_extranjeria']
-      if (!validTypes.includes(body.documentType)) {
-        errors.push('Tipo de documento no válido')
-      }
-    }
+    if (data.documentType !== undefined) updateData.documentType = data.documentType
+    if (data.cedula !== undefined) updateData.cedula = data.cedula
+    if (data.name !== undefined) updateData.name = data.name.toUpperCase()
+    if (data.email !== undefined) updateData.email = data.email ? data.email.toLowerCase() : null
+    if (data.phone !== undefined) updateData.phone = data.phone
+    if (data.address !== undefined) updateData.address = data.address
+    if (data.city !== undefined) updateData.city = data.city
 
-    if (errors.length > 0) {
-      return NextResponse.json(
-        { success: false, errors },
-        { status: 400 }
-      )
-    }
-
-    // Build update data (only include fields that were provided)
-    const updateData: {
-      documentType?: string
-      cedula?: string
-      name?: string
-      email?: string | null
-      phone?: string
-      address?: string | null
-      city?: string | null
-    } = {}
-
-    if (body.documentType !== undefined) {
-      updateData.documentType = body.documentType
-    }
-    if (body.cedula !== undefined) {
-      updateData.cedula = body.cedula.trim()
-    }
-    if (body.name !== undefined) {
-      updateData.name = body.name.trim().toUpperCase()
-    }
-    if (body.email !== undefined) {
-      updateData.email = body.email.trim().toLowerCase() || null
-    }
-    if (body.phone !== undefined) {
-      updateData.phone = body.phone.trim()
-    }
-    if (body.address !== undefined) {
-      updateData.address = body.address.trim() || null
-    }
-    if (body.city !== undefined) {
-      updateData.city = body.city.trim() || null
-    }
-
-    // Update customer
+    // No check-then-update for the cédula: let the unique constraint decide
+    // and catch P2002.
     const updatedCustomer = await prisma.customer.update({
       where: { id },
       data: updateData
@@ -169,6 +152,17 @@ export async function PATCH(
     })
 
   } catch (error) {
+    // Duplicate cédula → unique constraint violation (P2002).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Ya existe un cliente con esta cédula.'
+        },
+        { status: 409 }
+      )
+    }
+
     console.error('Error updating customer:', error)
 
     return NextResponse.json(

@@ -17,6 +17,16 @@ Append new decisions at the top. Include [SHARED] tag if it affects both nouvie-
 
 ---
 
+## 2026-06-12: Cédula opcional + "no factura sin cédula"
+
+**Context**: Mariana hace ventas informales (sin factura) por WhatsApp donde el cliente no da cédula. El sistema exigía cédula y email para crear un cliente, lo que frenaba esas ventas. A la vez, una factura legal sí requiere cédula.
+**Options considered**: (A) cédula vacía como `""` vs `NULL`; (B) índice único parcial vs único estándar nullable; (C) validar inline en cada capa vs un solo esquema zod; (D) bloquear la factura solo al emitir vs también al editar el cliente.
+**Decision**: `cedula` pasa a `String? @unique` (NULL = sin documento; Postgres trata NULLs como distintos, así que sirve el único estándar, sin índice parcial). Solo `name` + `phone` son obligatorios. Un único esquema zod (`lib/validation/customer.ts`) compartido por el formulario y las rutas API, con coerción `"" → null` en el borde (un `""` colisionaría en el índice único para el segundo cliente sin cédula). Sin check-then-insert: se confía en el índice y se captura Prisma P2002. La factura (PDF + asignación de `invoiceNumber`) se bloquea en el servidor cuando el cliente no tiene cédula; además se impide *quitar* la cédula a un cliente que ya tiene facturas emitidas.
+**Trade-off**: Datos de cliente más incompletos (cédula/email pueden faltar). Aceptado a propósito: el objetivo es no frenar la venta informal. La factura sigue protegida por el servidor; la UI solo deshabilita por conveniencia.
+**Affects**: `prisma/schema.prisma`, `prisma/migrations/2026-06-12-cedula-optional/migration.sql` (corrido una vez contra la DB compartida vía `DIRECT_URL`), `lib/validation/customer.ts` (nuevo), `app/api/customers/route.ts`, `app/api/customers/[id]/route.ts`, `app/api/orders/[id]/route.ts`, `app/api/orders/[id]/pdf/route.tsx`, `app/(dashboard)/orders/[id]/page.tsx`, `components/customers/CustomerForm.tsx`, `types/index.ts`, y display fallbacks (`CustomerCard`, `CustomerSelect`, `customers/[id]`, `orders/export`, `prisma/backup-orders`). **nouvie-web no afectado** (no modela clientes; solo lee `Product`/`ExchangeRate` de la DB compartida).
+
+---
+
 ## 2026-05-29: Estadísticas analytics view — queries + CSS bars (n8n groundwork)
 
 **Context**: Client wanted an at-a-glance view of best-selling products and top customers, with AI alerts (via n8n) as a planned second step. Nothing like it existed; the dashboard only showed today's counts.

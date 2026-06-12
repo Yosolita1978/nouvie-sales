@@ -30,7 +30,7 @@ model User {
 model Customer {
   id        String   @id @default(uuid())
   documentType String  @default("cedula") // "cedula", "nit", "cedula_extranjeria"
-  cedula    String   @unique // Document number (cedula, NIT, or cedula extranjeria)
+  cedula    String?  @unique // Optional document number. NULL = informal sale (no factura). Postgres treats NULLs as distinct, so many cédula-less customers are allowed.
   name      String
   email     String?
   phone     String

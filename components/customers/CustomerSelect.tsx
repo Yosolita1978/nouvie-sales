@@ -151,7 +151,7 @@ export function CustomerSelect({
               </p>
               <div className="mt-2 space-y-1 text-sm text-gray-600">
                 <p>
-                  <span className="font-medium">Cédula:</span> {selected.cedula}
+                  <span className="font-medium">Cédula:</span> {selected.cedula || 'Sin cédula'}
                 </p>
                 <p>
                   <span className="font-medium">Teléfono:</span> {selected.phone}
@@ -331,7 +331,7 @@ export function CustomerSelect({
                         {customer.name}
                       </p>
                       <div className="flex gap-4 mt-1 text-sm text-gray-500">
-                        <span>CC: {customer.cedula}</span>
+                        <span>{customer.cedula ? `CC: ${customer.cedula}` : 'Sin cédula'}</span>
                         {customer.city && <span>{customer.city}</span>}
                       </div>
                     </button>

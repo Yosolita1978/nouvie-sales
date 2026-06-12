@@ -20,7 +20,7 @@ interface CustomerOrder {
 interface CustomerWithOrders {
   id: string
   documentType: string
-  cedula: string
+  cedula: string | null
   name: string
   email: string | null
   phone: string
@@ -232,7 +232,7 @@ export default function CustomerDetailPage() {
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="badge-info">CC: {customer.cedula}</span>
+          <span className="badge-info">{customer.cedula ? `CC: ${customer.cedula}` : 'Sin cédula'}</span>
           <span className="badge-success">Activo</span>
         </div>
       </div>

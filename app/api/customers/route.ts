@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-
-// Type for the POST request body
-const VALID_DOCUMENT_TYPES = ['cedula', 'nit', 'cedula_extranjeria']
-
-interface CreateCustomerBody {
-  documentType?: string
-  cedula: string
-  name: string
-  email: string
-  phone: string
-  address?: string
-  city?: string
-}
+import { customerCreateSchema, zodErrorMessages } from '@/lib/validation/customer'
 
 /**
  * GET /api/customers
@@ -129,17 +117,12 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/customers
- * 
- * Creates a new customer in the database
- * 
- * Request Body:
- *   - cedula: string (required, unique, 8-10 digits)
- *   - name: string (required)
- *   - email: string (required, valid email)
- *   - phone: string (required)
- *   - address: string (optional)
- *   - city: string (optional)
- * 
+ *
+ * Creates a new customer.
+ *
+ * Required: name, phone.
+ * Optional: cedula, email (empty values are stored as NULL, never "").
+ *
  * Returns:
  *   - 201: Created customer object
  *   - 400: Validation error
@@ -148,87 +131,40 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Parse the request body with type assertion
-    const body: CreateCustomerBody = await request.json()
+    // Validate + normalize with the shared zod schema. Empty cedula/email
+    // come back as null, so they are persisted as NULL (not "").
+    const parsed = customerCreateSchema.safeParse(await request.json())
 
-    // Extract fields from body
-    const { cedula, name, email, phone, address, city } = body
-    const documentType = body.documentType || 'cedula'
-
-    // Validate required fields
-    const errors: string[] = []
-
-    if (!VALID_DOCUMENT_TYPES.includes(documentType)) {
-      errors.push('Tipo de documento no válido')
-    }
-
-    if (!cedula || cedula.trim() === '') {
-      errors.push('Número de documento es requerido')
-    } else if (documentType === 'cedula' && !/^\d{6,10}$/.test(cedula.trim())) {
-      errors.push('Cédula debe tener entre 6 y 10 dígitos')
-    } else if (documentType === 'nit' && !/^\d{9,10}$/.test(cedula.trim())) {
-      errors.push('NIT debe tener entre 9 y 10 dígitos')
-    }
-
-    if (!name || name.trim() === '') {
-      errors.push('Nombre es requerido')
-    }
-
-    if (!email || email.trim() === '') {
-      errors.push('Email es requerido')
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errors.push('Email no es válido')
-    }
-
-    if (!phone || phone.trim() === '') {
-      errors.push('Teléfono es requerido')
-    }
-
-    // If there are validation errors, return them
-    if (errors.length > 0) {
+    if (!parsed.success) {
       return NextResponse.json(
         {
           success: false,
           error: 'Validation failed',
-          errors: errors
+          errors: zodErrorMessages(parsed.error)
         },
         { status: 400 }
       )
     }
 
-    // Check if cedula already exists
-    const existingCustomer = await prisma.customer.findUnique({
-      where: { cedula: cedula.trim() }
-    })
+    const data = parsed.data
 
-    if (existingCustomer) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Duplicate cedula',
-          message: `Ya existe un cliente con la cédula ${cedula}`
-        },
-        { status: 409 }
-      )
-    }
-
-    // Create the new customer using Prisma's typed input
+    // Build Prisma input. null is passed through for cedula/email — never "".
     const customerData: Prisma.CustomerCreateInput = {
-      documentType,
-      cedula: cedula.trim(),
-      name: name.trim().toUpperCase(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      address: address?.trim() || null,
-      city: city?.trim() || null,
+      documentType: data.documentType ?? 'cedula',
+      cedula: data.cedula,
+      name: data.name.toUpperCase(),
+      email: data.email ? data.email.toLowerCase() : null,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
       active: true
     }
 
+    // No check-then-insert: let the unique constraint decide and catch P2002.
     const newCustomer = await prisma.customer.create({
       data: customerData
     })
 
-    // Return the created customer
     return NextResponse.json(
       {
         success: true,
@@ -239,6 +175,18 @@ export async function POST(request: NextRequest) {
     )
 
   } catch (error) {
+    // Duplicate cédula → unique constraint violation (P2002).
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Duplicate cedula',
+          message: 'Ya existe un cliente con esta cédula.'
+        },
+        { status: 409 }
+      )
+    }
+
     console.error('Error creating customer:', error)
 
     return NextResponse.json(
