@@ -24,9 +24,33 @@ const PAYMENT_STATUS_BADGES: Record<string, string> = {
   paid: 'badge-success'
 }
 
+// Window (in days) during which a brand-new client shows the "Nuevo" badge.
+const NEW_CLIENT_DAYS = 7
+
+// A client counts as "edited" when its updatedAt is meaningfully later than
+// its createdAt. We use a 2-second margin so a freshly-created client (whose
+// two timestamps differ by only a few milliseconds) is not flagged as edited.
+function wasEdited(createdAt: Date | string, updatedAt?: Date | string): boolean {
+  if (!updatedAt) return false
+  const created = new Date(createdAt).getTime()
+  const updated = new Date(updatedAt).getTime()
+  return updated - created > 2000
+}
+
+// A client counts as "new" when it was created within the last NEW_CLIENT_DAYS.
+function isNew(createdAt: Date | string): boolean {
+  const created = new Date(createdAt).getTime()
+  const ageDays = (Date.now() - created) / (1000 * 60 * 60 * 24)
+  return ageDays <= NEW_CLIENT_DAYS
+}
+
 export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [currentCustomer, setCurrentCustomer] = useState(customer)
+  // "Editado" takes precedence over "Nuevo" so an edited client always reads
+  // as edited, even if it was also created recently.
+  const edited = wasEdited(currentCustomer.createdAt, currentCustomer.updatedAt)
+  const newClient = !edited && isNew(currentCustomer.createdAt)
 
   function handleEditClick(e: React.MouseEvent) {
     e.preventDefault()
@@ -55,10 +79,12 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
           </h3>
 
           {/* Cedula Badge */}
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span className="badge-info">
               {currentCustomer.cedula ? `CC: ${currentCustomer.cedula}` : 'Sin cédula'}
             </span>
+            {edited && <span className="badge-warning">Editado</span>}
+            {newClient && <span className="badge-success">Nuevo</span>}
           </div>
 
           {/* Contact Info */}

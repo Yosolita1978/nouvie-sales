@@ -207,6 +207,7 @@ export interface CustomerLastOrder {
     city: string | null
     active: boolean
     createdAt: Date | string
+    updatedAt?: Date | string
     // Order summary — only present on the GET /api/customers list response
     orderCount?: number
     lastOrder?: CustomerLastOrder | null

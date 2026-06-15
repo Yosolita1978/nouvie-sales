@@ -121,18 +121,11 @@ export default function CustomerDetailPage() {
     setDeleteError(null)
   }
 
-  function handleCustomerUpdated(updatedCustomer?: CustomerListItem) {
+  function handleCustomerUpdated() {
     setIsEditModalOpen(false)
-    if (updatedCustomer && customer) {
-      setCustomer({
-        ...customer,
-        name: updatedCustomer.name,
-        email: updatedCustomer.email,
-        phone: updatedCustomer.phone,
-        address: updatedCustomer.address,
-        city: updatedCustomer.city
-      })
-    }
+    // Re-fetch the full client from the API so every field (including
+    // cédula and tipo de documento) reflects the latest saved values.
+    fetchCustomer()
   }
 
   if (loading) {

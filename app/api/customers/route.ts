@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
         city: true,
         active: true,
         createdAt: true,
+        updatedAt: true,
         // Most recent order for this customer (for the card summary)
         orders: {
           orderBy: { createdAt: 'desc' },
