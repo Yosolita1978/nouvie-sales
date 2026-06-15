@@ -289,3 +289,33 @@ export function capitalize(text: string): string {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
+
+// ============================================
+// CUSTOMER STATUS (Nuevo / Editado)
+// ============================================
+
+/**
+ * Number of days a client is still considered "new" after being created.
+ */
+export const NEW_CLIENT_DAYS = 7
+
+/**
+ * A client counts as "edited" when its updatedAt is meaningfully later than
+ * its createdAt. We use a 2-second margin so a freshly-created client (whose
+ * two timestamps differ by only a few milliseconds) is not flagged as edited.
+ */
+export function wasEdited(createdAt: Date | string, updatedAt?: Date | string): boolean {
+  if (!updatedAt) return false
+  const created = new Date(createdAt).getTime()
+  const updated = new Date(updatedAt).getTime()
+  return updated - created > 2000
+}
+
+/**
+ * A client counts as "new" when it was created within the last NEW_CLIENT_DAYS.
+ */
+export function isNew(createdAt: Date | string): boolean {
+  const created = new Date(createdAt).getTime()
+  const ageDays = (Date.now() - created) / (1000 * 60 * 60 * 24)
+  return ageDays <= NEW_CLIENT_DAYS
+}

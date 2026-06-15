@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui'
 import { CustomerForm } from './CustomerForm'
-import { formatCOP, formatDate } from '@/lib/utils'
+import { formatCOP, formatDate, wasEdited, isNew } from '@/lib/utils'
 import type { CustomerListItem } from '@/types'
 
 interface CustomerCardProps {
@@ -22,26 +22,6 @@ const PAYMENT_STATUS_BADGES: Record<string, string> = {
   pending: 'badge-warning',
   partial: 'badge-info',
   paid: 'badge-success'
-}
-
-// Window (in days) during which a brand-new client shows the "Nuevo" badge.
-const NEW_CLIENT_DAYS = 7
-
-// A client counts as "edited" when its updatedAt is meaningfully later than
-// its createdAt. We use a 2-second margin so a freshly-created client (whose
-// two timestamps differ by only a few milliseconds) is not flagged as edited.
-function wasEdited(createdAt: Date | string, updatedAt?: Date | string): boolean {
-  if (!updatedAt) return false
-  const created = new Date(createdAt).getTime()
-  const updated = new Date(updatedAt).getTime()
-  return updated - created > 2000
-}
-
-// A client counts as "new" when it was created within the last NEW_CLIENT_DAYS.
-function isNew(createdAt: Date | string): boolean {
-  const created = new Date(createdAt).getTime()
-  const ageDays = (Date.now() - created) / (1000 * 60 * 60 * 24)
-  return ageDays <= NEW_CLIENT_DAYS
 }
 
 export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps) {

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { formatCOP, formatDate } from '@/lib/utils'
-import type { OrderWithDetails, Product } from '@/types'
+import { formatCOP, formatDate, wasEdited, isNew } from '@/lib/utils'
+import type { OrderWithDetails, Product, CustomerListItem } from '@/types'
 
 interface DashboardStats {
   customers: number
@@ -16,6 +16,7 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [recentOrders, setRecentOrders] = useState<OrderWithDetails[]>([])
+  const [recentCustomers, setRecentCustomers] = useState<CustomerListItem[]>([])
   const [outOfStockProducts, setOutOfStockProducts] = useState<Product[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,19 +25,21 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [statsRes, ordersRes, productsRes] = await Promise.all([
+        const [statsRes, ordersRes, productsRes, customersRes] = await Promise.all([
           fetch('/api/dashboard'),
           fetch('/api/orders'),
-          fetch('/api/products')
+          fetch('/api/products'),
+          fetch('/api/customers')
         ])
 
-        if (!statsRes.ok || !ordersRes.ok || !productsRes.ok) {
+        if (!statsRes.ok || !ordersRes.ok || !productsRes.ok || !customersRes.ok) {
           throw new Error('Failed to fetch data')
         }
 
         const statsData = await statsRes.json()
         const ordersData = await ordersRes.json()
         const productsData = await productsRes.json()
+        const customersData = await customersRes.json()
 
         if (statsData.success) {
           setStats(statsData.data)
@@ -52,6 +55,20 @@ export default function DashboardPage() {
           const lowStock = products.filter((p) => p.stock > 0 && p.stock <= p.minStock)
           setOutOfStockProducts(outOfStock)
           setLowStockProducts(lowStock)
+        }
+
+        if (customersData.success) {
+          const customers: CustomerListItem[] = customersData.data
+          // Keep only clients that are new or recently edited, most recent first.
+          const recent = customers
+            .filter((c) => isNew(c.createdAt) || wasEdited(c.createdAt, c.updatedAt))
+            .sort((a, b) => {
+              const aTime = new Date(a.updatedAt ?? a.createdAt).getTime()
+              const bTime = new Date(b.updatedAt ?? b.createdAt).getTime()
+              return bTime - aTime
+            })
+            .slice(0, 5)
+          setRecentCustomers(recent)
         }
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
@@ -375,6 +392,69 @@ export default function DashboardPage() {
                 </span>
               </Link>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Recent Customers (New & Edited) */}
+      <div className="card-padded">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Clientes Nuevos y Editados</h2>
+          <Link href="/customers" className="text-sm text-nouvie-blue hover:underline">
+            Ver todos →
+          </Link>
+        </div>
+
+        {loading && (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex justify-between items-center py-3 animate-pulse">
+                <div className="space-y-2">
+                  <div className="h-4 w-32 bg-gray-200 rounded"></div>
+                  <div className="h-3 w-24 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-5 w-16 bg-gray-200 rounded"></div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && recentCustomers.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p>No hay clientes nuevos o editados recientemente</p>
+          </div>
+        )}
+
+        {!loading && recentCustomers.length > 0 && (
+          <div className="divide-y divide-gray-100">
+            {recentCustomers.map((customer) => {
+              const edited = wasEdited(customer.createdAt, customer.updatedAt)
+              return (
+                <Link
+                  key={customer.id}
+                  href={`/customers/${customer.id}`}
+                  className="flex items-center justify-between py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900">{customer.name}</span>
+                      {edited ? (
+                        <span className="badge-warning">Editado</span>
+                      ) : (
+                        <span className="badge-success">Nuevo</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500" suppressHydrationWarning>
+                      {customer.cedula ? `CC: ${customer.cedula}` : 'Sin cédula'} •{' '}
+                      {formatDate(edited ? customer.updatedAt ?? customer.createdAt : customer.createdAt)}
+                    </p>
+                  </div>
+                  <svg className="h-5 w-5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
