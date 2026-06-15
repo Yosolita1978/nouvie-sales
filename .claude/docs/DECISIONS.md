@@ -17,6 +17,16 @@ Append new decisions at the top. Include [SHARED] tag if it affects both nouvie-
 
 ---
 
+## 2026-06-15: Detección de cliente Nuevo/Editado por timestamps
+
+**Context**: El cliente reportó que el detalle de un cliente no se actualizaba tras editarlo (mostraba la cédula vieja). Además pidió ver, en la lista y en el dashboard, qué clientes son nuevos y cuáles fueron editados — similar a la sección de "Pedidos Recientes".
+**Options considered**: (A) Para refrescar el detalle: arreglar el merge parcial campo por campo vs recargar el cliente completo desde la API. (B) Para saber si un cliente fue editado: agregar una columna/flag explícito (`editedAt`, `wasEdited`) vs derivarlo de los timestamps `createdAt`/`updatedAt` que Prisma ya mantiene. (C) Para "editado": comparar valores reales antes/después vs solo detectar que hubo un guardado.
+**Decision**: (A) Recargar con `fetchCustomer()` al cerrar el modal — robusto, ningún campo queda viejo. (B) Derivar de timestamps, **sin cambio de esquema**: editado = `updatedAt - createdAt > 2s` (margen para no marcar recién creados); nuevo = creado en los últimos 7 días (`NEW_CLIENT_DAYS`) y no editado. Lógica en helpers compartidos en `lib/utils.ts` (`wasEdited`, `isNew`) usados por la tarjeta y el dashboard. `CustomerListItem.updatedAt` se hizo **opcional** y "ausente = no editado" para no romper los dos sitios que construyen el objeto sin ese campo.
+**Trade-off**: "Editado" marca cualquier guardado, incluso uno que no cambió ningún campo (re-guardar = editado). Aceptado por simplicidad; detectar cambios reales requeriría comparar valores o un flag. El badge "Nuevo" depende del reloj del navegador (se calcula en cliente).
+**Affects**: `app/(dashboard)/customers/[id]/page.tsx`, `components/customers/CustomerCard.tsx`, `app/(dashboard)/dashboard/page.tsx`, `lib/utils.ts` (`NEW_CLIENT_DAYS`, `wasEdited`, `isNew`), `app/api/customers/route.ts` (GET añade `updatedAt`), `types/index.ts` (`CustomerListItem.updatedAt?`). **nouvie-web no afectado.**
+
+---
+
 ## 2026-06-12: Cédula opcional + "no factura sin cédula"
 
 **Context**: Mariana hace ventas informales (sin factura) por WhatsApp donde el cliente no da cédula. El sistema exigía cédula y email para crear un cliente, lo que frenaba esas ventas. A la vez, una factura legal sí requiere cédula.

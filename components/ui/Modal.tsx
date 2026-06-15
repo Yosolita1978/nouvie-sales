@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   isOpen: boolean
@@ -11,6 +12,12 @@ interface ModalProps {
 
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
+  // Only render the portal once mounted on the client (document exists).
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -32,9 +39,13 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     if (e.target === e.currentTarget) onClose()
   }
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
+  // Render into document.body via a portal so the modal's DOM is never nested
+  // inside any parent <form>. This prevents the invalid nested-<form> bug when
+  // a Modal containing a form (e.g. CustomerForm) is opened from inside another
+  // form (e.g. OrderForm).
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
       onClick={handleBackdropClick}
@@ -72,6 +83,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

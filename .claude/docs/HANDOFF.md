@@ -127,6 +127,24 @@ Ahora un cliente se puede crear con **solo nombre y teléfono**. La **cédula y 
 
 ---
 
+## Clientes Nuevos y Editados — Junio 2026
+
+**Se arregló**: al editar un cliente, antes el detalle podía seguir mostrando datos viejos (por ejemplo la cédula anterior) al cerrar la ventana. Ahora, al guardar y cerrar, el detalle del cliente **se recarga completo** y muestra siempre los datos actualizados.
+
+**Etiquetas nuevas** para ver de un vistazo qué clientes son nuevos o cambiaron:
+
+- **"Nuevo"** (verde): el cliente fue creado en los últimos **7 días**.
+- **"Editado"** (ámbar): al cliente se le editó algún dato. (Tiene prioridad sobre "Nuevo".)
+
+Dónde aparecen:
+
+1. En la **lista de Clientes**, cada tarjeta muestra la etiqueta junto al badge de cédula.
+2. En el **Dashboard** (pantalla principal) hay una sección nueva **"Clientes Nuevos y Editados"**, debajo de "Pedidos Recientes". Muestra los **5** clientes con actividad más reciente (nuevos o editados), con su etiqueta y fecha. Al tocar uno se abre su detalle; **"Ver todos →"** lleva a la lista completa de Clientes.
+
+> Nota: la etiqueta "Editado" marca cualquier guardado del cliente, aunque no se haya cambiado nada. La etiqueta "Nuevo" desaparece automáticamente a los 7 días de creado el cliente.
+
+---
+
 ## Tareas Comunes
 
 ### Marcar pedido como pagado
