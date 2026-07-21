@@ -1,0 +1,46 @@
+linea,cliente,anio,cantidad,clave_override,fragmento,pedido_completo
+4,Maria Elena Corredor,2024,1,kit de 3,kit de 3,1 Kit de 3 y 1 Kit de 5
+21,Jaime Ramirez,2024,1,acai,acai,"Shampoo, locion y mascarilla kiwi y Acai"
+25,Cielo Salazar Rodriguez,2024,2,cajas dia de la madre,2 cajas dia de la madre,2 cajas día de la madre 1 kiwi 1 melon
+25,Cielo Salazar Rodriguez,2024,1,kiwi,1 kiwi,2 cajas día de la madre 1 kiwi 1 melon
+25,Cielo Salazar Rodriguez,2024,1,melon,1 melon,2 cajas día de la madre 1 kiwi 1 melon
+38,Rocío Paéz,2024,1,los,los,"1 rosado, 1 amarillo, 1 blanco, 1 verde, 1 rosado, y los 5 dispensadores"
+53,Claudia Farfan,2024,4,diisp,4 diisp,1 amarillo 1 rosado 1 azul 1 verde 1 blanco 4 diisp
+78,Cruz Elena Lopez,2024,1,kit,kit,kit   +5 (2amarillos 2 azules 1 blanco)
+114,Deyanira Zabala,2024,1,sha hombre,1 sha hombre,2 shampoo  1 masque 2 molding kiwi 1 sha hombre
+142,María Clemencia Urazan,2024,1,kiwi,kiwi,Promocion 2 moldin y masque melon y kiwi
+143,Gustavo Laino,2024,1,espumelo pqno,1 espumelo pqno,Promoción 2 amarillos 1 blanco 1 espúmelo pqño
+145,Javier Alfonso Galán,2024,1,linea men,1 linea men,Promo 3 amarillo 1 azul 1 rosado 1 línea men
+146,Elizabeth Rojas,2024,1,rosa,1 rosa,Promo 1 azul 1 amarillo 1 rosa 1 verde
+150,Luz Stella Arbelaez,2024,1,kit melon,kit melon,Promo 1 kit melon 1 molding melón 1 kit men
+150,Luz Stella Arbelaez,2024,1,kit men,1 kit men,Promo 1 kit melon 1 molding melón 1 kit men
+151,Josefina Del Pilar Doce,2024,1,kits melon,kits melon,Promo 3 kits melón 1 masque melon
+171,Jaime Perilla,2025,1,producto),1 producto),3 amarillos + 3 rosados ( 1 kit x 5 + 1 producto)
+182,Myriam Martinez,2025,1,kit melon,1 kit melon,1 Kit melon 2 kits hombre
+182,Myriam Martinez,2025,2,kits hombre,2 kits hombre,1 Kit melon 2 kits hombre
+205,Maria Paula Espindola,2025,1,kit capilar de kiwi ( ),1 kit capilar de kiwi ( ),1 kit capilar de kiwi ($100.000) + 1 desengrasante
+206,FUNDACION EDUCACIONAL ANA RESTREPO DEL CORRAL,2025,1,acero,acero,"8 litros limpiavidrios, acero y sanitizante 2 botellas de 250 ml concentrado ($ 39.800)+2 litros limpiapisos ($38.500)+2 litros limpia superficies y pantallas ($32.950)"
+206,FUNDACION EDUCACIONAL ANA RESTREPO DEL CORRAL,2025,2,botellas de 250 ml concentrado ( ),2 botellas de 250 ml concentrado ( ),"8 litros limpiavidrios, acero y sanitizante 2 botellas de 250 ml concentrado ($ 39.800)+2 litros limpiapisos ($38.500)+2 litros limpia superficies y pantallas ($32.950)"
+207,Adriana Rojas,2025,4,rojos,4 rojos,"2 kit x 5 (4 rojos, 4 azules y 2 amarillos) promocion NOV"
+207,Adriana Rojas,2025,1,nov,nov,"2 kit x 5 (4 rojos, 4 azules y 2 amarillos) promocion NOV"
+215,Myriam Martinez,2025,2,kits hombre,2kits hombre,2kits hombre 1 shampoo melón 1 molding melon
+219,Liliana Chimchilla,2025,1,paga dos de kiwi,paga dos de kiwi,Prom paga dos de kiwi
+220,Elsa Lopez,2025,1,kit melon mas,kit melon mas,Prom kit melon mas 1 molding melon
+221,Beatriz Andrade,2025,1,kit melon,kit melon,Promo kit melon
+223,Andreina Camerakit prpmocion,2025,1,kit,kit,Kit prom 1 shampoo melón 1 shampoo kiwi loción kiwi
+224,Javier Alfonso Galan,2025,1,kit,kit,kit prom 1 shampoo men 2 locion men
+227,Clemencia Herrera,2025,1,kit completo melon,kit completo melon,prom kit completo melon
+228,Adelaida Hernandez,2025,1,kiwi,1 kiwi,2 shampoo: 1 kiwi y 1 melon
+228,Adelaida Hernandez,2025,1,melon,1 melon,2 shampoo: 1 kiwi y 1 melon
+230,Patricia Echeverri,2025,1,capilar:,capilar:,Promocion capilar: 3 molding  y 1 amarillo
+245,Patricia Echeverri,2025,1,aseo:,aseo:,kit x 5 aseo: 4 azules+1 rosado
+302,Pilar Doce Paez,2025,4,kits capilar honey melon,4 kits capilar honey melon,4 kits capilar honey melon
+320,Pilar Duran,2025,1,kit melon,1 kit melon,1 kit melon 1 shampoo hombre 1 desengrasante
+325,Myriam Martinez,2025,1,desengr,1 desengr,2 shampoo kiwi 1 shampoo melón 1 shampoo hombre 1 desengr
+327,Manuela Zuluaga,2025,1,kit capilar melon,kit capilar melon,"kit capilar melon, kit aseo pequeño desengrasante, limpia vidirios, limpia pisos, lava vajillas, lustra muebles, kit viajero hombre y kiwi + 1 espumero"
+327,Manuela Zuluaga,2025,1,kiwi,kiwi,"kit capilar melon, kit aseo pequeño desengrasante, limpia vidirios, limpia pisos, lava vajillas, lustra muebles, kit viajero hombre y kiwi + 1 espumero"
+328,María Clemencia Urazan,2025,1,kit inicio,kit inicio,Kit inició 3 shampoo kiwi 3 molding kiwi 2 masque kiwi 1 molding
+329,—— ——,2025,1,melon,melon,Melón 1 masque melón 1detergente
+330,Ana Cecilia Salazar,2025,1,kit reparacion intensa,1 kit reparacion intensa,1 kit reparacion intensa+ 1 kit pequeño desengrasante+ 1kit pequeño limpiavidrios
+339,Patricia Echeverri,2026,1,kit inicio:,kit inicio:,kit inicio: 5 desengrasantes ($ 33.600)+ 2 detergente neutro ($33.600)+1 limpia pisos ($31.500)+2 limpia vidrios ( 31.500)
+341,Ultrabac,2026,3,suavizantes,3 suavizantes,3 desincrustantes+3 Detergente alcalino+ 3 suavizantes

@@ -154,3 +154,88 @@ model ExchangeRate {
 
   @@map("exchange_rates")
 }
+
+// ============================================
+// HISTORIC SALE - Isolated import of the old ventas CSV
+// ============================================
+// Deliberately DECOUPLED from customers/products/orders: no foreign keys,
+// client and product references are plain strings. This keeps the live
+// tables pristine (no duplicates/conflicts) while the reports page reads
+// from here and only read-cross-references live orders.
+model HistoricSale {
+  id            String   @id @default(uuid())
+
+  // Source traceability + idempotency (re-import upserts by rowNumber)
+  rowNumber     Int      @unique // 1-based line in the source CSV
+  rawDate       String   // original FECHA text, e.g. "abril 18"
+  rawAmount     String?  // original TOTAL RECAUDO text, before normalization
+  rawProduct    String   @db.Text // original PEDIDO free text
+
+  // Normalized fields
+  saleDate      DateTime // inferred full date
+  year          Int      // inferred year (2024 / 2025 / 2026)
+  amount        Decimal  @db.Decimal(12, 2) // normalized COP total
+
+  // Client (no FK to customers — matched later, read-only)
+  clientName    String
+  cedula        String?
+  email         String?
+  phone         String?
+  city          String?
+  address       String?
+
+  // Extra sheet columns kept for reference
+  paymentStatus String?  // ESTADO DE PAGO
+  logistica     String?  // LOGÍSTICA
+  observacion   String?  @db.Text
+
+  // Parser notes: anything guessed (inferred year, ambiguous money format,
+  // unmapped product). Stored as JSON string so nothing is silently wrong.
+  parseFlags    String?  @db.Text
+
+  createdAt     DateTime @default(now())
+
+  items         HistoricSaleItem[]
+
+  @@index([year])
+  @@index([clientName])
+  @@index([cedula])
+  @@index([saleDate])
+  @@map("historic_sales")
+}
+
+// ============================================
+// HISTORIC PRODUCT MAPPING - Manual overmap of "UNMAPPED" items
+// ============================================
+// Lets the admin assign a canonical product to an unmapped historic item from
+// the platform (no code). Keyed by the exact stored item name ("UNMAPPED: ...").
+// Separate table so it survives re-imports of historic_sales.
+model HistoricProductMapping {
+  id           String   @id @default(uuid())
+  unmappedName String   @unique // the exact HistoricSaleItem.productName, e.g. "UNMAPPED: kit melon"
+  productName  String   // canonical product to count it as
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("historic_product_mappings")
+}
+
+// ============================================
+// HISTORIC SALE ITEM - Parsed product lines
+// ============================================
+// productName is the CANONICAL DB product name (or "UNMAPPED: <text>" when the
+// parser can't match). No FK to Product on purpose — kept as a decoupled string.
+model HistoricSaleItem {
+  id             String       @id @default(uuid())
+  historicSaleId String
+  productName    String       // canonical name, or "UNMAPPED: ..."
+  quantity       Int
+  fromKit        Boolean      @default(false) // expanded out of a "kit de N"
+  rawText        String?      // the fragment this line was parsed from
+
+  historicSale   HistoricSale @relation(fields: [historicSaleId], references: [id], onDelete: Cascade)
+
+  @@index([historicSaleId])
+  @@index([productName])
+  @@map("historic_sale_items")
+}
