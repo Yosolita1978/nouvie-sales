@@ -7,6 +7,8 @@ interface Row {
   count: number
   quantity: number
   current: string
+  exampleText: string
+  exampleLine: number
 }
 
 type Status = 'idle' | 'saving' | 'saved' | 'error'
@@ -38,15 +40,11 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
 
   return (
     <div className="overflow-x-auto">
-      <datalist id="product-options">
-        {productOptions.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-200">
             <th className="py-2 pr-4 font-medium">Texto sin clasificar</th>
+            <th className="py-2 pr-4 font-medium">Ejemplo (pedido original)</th>
             <th className="py-2 pr-4 font-medium text-right">Ítems</th>
             <th className="py-2 pr-4 font-medium">Asignar producto</th>
             <th className="py-2 font-medium"></th>
@@ -56,25 +54,35 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
           {rows.map((r) => {
             const st = status[r.unmappedName] ?? 'idle'
             return (
-              <tr key={r.unmappedName} className="border-b border-gray-100 align-middle">
-                <td className="py-2 pr-4 text-gray-800">{r.unmappedName.replace('UNMAPPED: ', '')}</td>
-                <td className="py-2 pr-4 text-gray-500 text-right tabular-nums">
+              <tr key={r.unmappedName} className="border-b border-gray-100 align-top">
+                <td className="py-3 pr-4 text-gray-800 font-medium">
+                  {r.unmappedName.replace('UNMAPPED: ', '')}
+                </td>
+                <td className="py-3 pr-4 text-gray-500 max-w-xs">
+                  <span className="text-gray-400">línea {r.exampleLine}:</span> “{r.exampleText}”
+                </td>
+                <td className="py-3 pr-4 text-gray-500 text-right tabular-nums whitespace-nowrap">
                   {r.count} ({r.quantity} und)
                 </td>
-                <td className="py-2 pr-4">
-                  <input
-                    list="product-options"
+                <td className="py-3 pr-4">
+                  <select
                     value={values[r.unmappedName] ?? ''}
                     onChange={(e) => {
                       const v = e.target.value
                       setValues((s) => ({ ...s, [r.unmappedName]: v }))
                       setStatus((s) => ({ ...s, [r.unmappedName]: 'idle' }))
                     }}
-                    placeholder="Producto…"
-                    className="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-nouvie-blue"
-                  />
+                    className="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-nouvie-blue"
+                  >
+                    <option value="">— Sin asignar —</option>
+                    {productOptions.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
                 </td>
-                <td className="py-2 whitespace-nowrap">
+                <td className="py-3 whitespace-nowrap">
                   <button
                     onClick={() => save(r.unmappedName)}
                     disabled={st === 'saving'}
