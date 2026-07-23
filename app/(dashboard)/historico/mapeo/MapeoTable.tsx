@@ -40,6 +40,13 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
 
   return (
     <div className="overflow-x-auto">
+      {/* Shared option list: the input below lets the client type freely AND
+          pick from this list (typing filters it). */}
+      <datalist id="product-options">
+        {productOptions.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-gray-500 border-b border-gray-200">
@@ -65,22 +72,17 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
                   {r.count} ({r.quantity} und)
                 </td>
                 <td className="py-3 pr-4">
-                  <select
+                  <input
+                    list="product-options"
                     value={values[r.unmappedName] ?? ''}
                     onChange={(e) => {
                       const v = e.target.value
                       setValues((s) => ({ ...s, [r.unmappedName]: v }))
                       setStatus((s) => ({ ...s, [r.unmappedName]: 'idle' }))
                     }}
+                    placeholder="Escribe o elige un producto…"
                     className="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-nouvie-blue"
-                  >
-                    <option value="">— Sin asignar —</option>
-                    {productOptions.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </td>
                 <td className="py-3 whitespace-nowrap">
                   <button
