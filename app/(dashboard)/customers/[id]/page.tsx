@@ -29,6 +29,18 @@ interface CustomerWithOrders {
   active: boolean
   createdAt: string
   orders: CustomerOrder[]
+  /** Purchases from the 2024-2026 sales sheet, linked to this customer. */
+  historicSales?: HistoricSale[]
+}
+
+interface HistoricSale {
+  id: string
+  /** Line in the source CSV, for traceability. */
+  line: number
+  date: string
+  year: number
+  total: number
+  detail: string
 }
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
@@ -177,6 +189,9 @@ export default function CustomerDetailPage() {
   }
 
   const hasOrders = customer.orders.length > 0
+  const historicSales = customer.historicSales ?? []
+  const historicTotal = historicSales.reduce((n, s) => n + s.total, 0)
+  const historicYears = [...new Set(historicSales.map((s) => s.year))].sort((a, b) => a - b)
   const canDelete = !hasOrders && !deleteError
 
   let deleteMessage = ''
@@ -335,6 +350,39 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Compras anteriores (histórico 2024-2026) */}
+      {historicSales.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-semibold text-gray-900">Compras anteriores</h2>
+            <span className="text-sm text-gray-500">
+              {historicSales.length} compra{historicSales.length !== 1 ? 's' : ''} ·{' '}
+              {formatCOP(historicTotal)}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Ventas del archivo antiguo ({historicYears.join(', ')}), antes de usar la plataforma.
+          </p>
+
+          <div className="space-y-2">
+            {historicSales.map((sale) => (
+              <div
+                key={sale.id}
+                className="flex items-start justify-between gap-4 rounded-lg border border-gray-100 bg-gray-50 p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800">{formatDate(sale.date)}</p>
+                  <p className="text-sm text-gray-600 break-words">{sale.detail}</p>
+                </div>
+                <span className="font-semibold text-gray-700 flex-shrink-0">
+                  {formatCOP(sale.total)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={showDeleteDialog}

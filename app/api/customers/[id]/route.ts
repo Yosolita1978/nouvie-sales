@@ -40,12 +40,36 @@ export async function GET(
       )
     }
 
+    // Purchases from the OLD sales sheet, reached through the client-match table.
+    // Several sheet spellings can point at this same customer, so all of their
+    // sales are collected together.
+    const matches = await prisma.historicClientMatch.findMany({
+      where: { customerId: id, confirmed: true },
+      select: { clientName: true },
+    })
+    const historicSales = matches.length === 0 ? [] : await prisma.historicSale.findMany({
+      where: { clientName: { in: matches.map(m => m.clientName) } },
+      orderBy: { saleDate: 'desc' },
+      select: {
+        id: true, rowNumber: true, saleDate: true, year: true,
+        amount: true, rawProduct: true,
+      },
+    })
+
     const serializedCustomer = {
       ...customer,
       orders: customer.orders.map(order => ({
         ...order,
         total: Number(order.total)
-      }))
+      })),
+      historicSales: historicSales.map(s => ({
+        id: s.id,
+        line: s.rowNumber,
+        date: s.saleDate,
+        year: s.year,
+        total: Number(s.amount),
+        detail: s.rawProduct,
+      })),
     }
 
     return NextResponse.json({

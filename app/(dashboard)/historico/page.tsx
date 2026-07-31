@@ -129,18 +129,72 @@ interface ClientHistory {
   total: number
   count: number
   lastDate: Date
+  /** Where the most recent purchase came from. */
+  lastSource: 'historico' | 'plataforma'
+  /** Set once the sheet name is linked to a real customer. */
+  customerId: string | null
+  platformCount: number
 }
 
-function clientHistories(sales: Sale[]): ClientHistory[] {
+interface OrderLite {
+  customerId: string
+  total: number
+  orderDate: Date
+}
+
+/**
+ * One row per REAL client, not per spelling in the sheet.
+ *
+ * Two things happen here that the old version got wrong:
+ *   1. Several sheet names can be the same person ("ULTRABAC LTDA" / "ULTRABAC",
+ *      "Jaime Perilla" / "Jaime Alberto Perilla"). Rows are keyed by the matched
+ *      customer, so those collapse into one client.
+ *   2. Live orders count too. Someone who bought in the sheet in 2024 and
+ *      ordered last month is NOT inactive, and the old version said they were.
+ */
+function clientHistories(
+  sales: Sale[],
+  matchByClientKey: Map<string, { customerId: string | null; customerName: string | null }>,
+  ordersByCustomer: Map<string, OrderLite[]>
+): ClientHistory[] {
   const map = new Map<string, ClientHistory>()
+
   for (const s of sales) {
-    const key = normName(s.clientName)
-    const c = map.get(key) ?? { name: s.clientName, total: 0, count: 0, lastDate: s.saleDate }
+    const match = matchByClientKey.get(normalizeName(s.clientName))
+    // Key by customer when linked; otherwise fall back to the sheet name.
+    const key = match?.customerId ?? `hoja:${normName(s.clientName)}`
+    const c = map.get(key) ?? {
+      name: match?.customerName ?? s.clientName,
+      total: 0,
+      count: 0,
+      lastDate: s.saleDate,
+      lastSource: 'historico' as const,
+      customerId: match?.customerId ?? null,
+      platformCount: 0,
+    }
     c.total += amountOf(s)
     c.count += 1
-    if (s.saleDate > c.lastDate) c.lastDate = s.saleDate
+    if (s.saleDate > c.lastDate) {
+      c.lastDate = s.saleDate
+      c.lastSource = 'historico'
+    }
     map.set(key, c)
   }
+
+  // Fold in the live orders of every linked customer.
+  for (const c of map.values()) {
+    if (c.customerId === null) continue
+    for (const o of ordersByCustomer.get(c.customerId) ?? []) {
+      c.total += o.total
+      c.count += 1
+      c.platformCount += 1
+      if (o.orderDate > c.lastDate) {
+        c.lastDate = o.orderDate
+        c.lastSource = 'plataforma'
+      }
+    }
+  }
+
   return [...map.values()]
 }
 
@@ -159,11 +213,37 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 // --- Page --------------------------------------------------------------------
 
 export default async function HistoricoPage() {
-  const [sales, mappingRows, clientMatches] = await Promise.all([
+  const [sales, mappingRows, clientMatches, orders] = await Promise.all([
     prisma.historicSale.findMany({ include: { items: true } }),
     prisma.historicProductMapping.findMany({ include: { components: true } }),
-    prisma.historicClientMatch.findMany({ select: { clientKey: true, confirmed: true } }),
+    prisma.historicClientMatch.findMany({
+      select: {
+        clientKey: true,
+        confirmed: true,
+        customerId: true,
+        customer: { select: { name: true } },
+      },
+    }),
+    // Live orders of every customer linked to the sheet, so "última compra"
+    // reflects the platform too, not only the old file.
+    prisma.order.findMany({ select: { customerId: true, total: true, orderDate: true } }),
   ])
+
+  const matchByClientKey = new Map(
+    clientMatches
+      .filter((m) => m.confirmed)
+      .map((m) => [
+        m.clientKey,
+        { customerId: m.customerId, customerName: m.customer?.name ?? null },
+      ])
+  )
+
+  const ordersByCustomer = new Map<string, OrderLite[]>()
+  for (const o of orders) {
+    const list = ordersByCustomer.get(o.customerId) ?? []
+    list.push({ customerId: o.customerId, total: Number(o.total), orderDate: o.orderDate })
+    ordersByCustomer.set(o.customerId, list)
+  }
 
   const index = new MappingIndex(mappingRows)
 
@@ -174,7 +254,8 @@ export default async function HistoricoPage() {
   const summaries = yearSummaries(sales)
   const products = productsByYear(sales, index)
   const clientsByYear = topClientsByYear(sales)
-  const histories = clientHistories(sales)
+  const histories = clientHistories(sales, matchByClientKey, ordersByCustomer)
+  const unlinkedInReport = histories.filter((c) => c.customerId === null).length
 
   const now = new Date()
   const cutoff = new Date(now)
@@ -276,7 +357,11 @@ export default async function HistoricoPage() {
       {/* Clientes inactivos +6 meses */}
       <Card
         title={`Clientes inactivos (+${DORMANT_MONTHS} meses)`}
-        subtitle={`${dormant.length} clientes sin comprar desde antes de ${formatDate(cutoff)}. Ordenados por valor total (prioridad de contacto).`}
+        subtitle={
+          `${dormant.length} clientes sin comprar desde antes de ${formatDate(cutoff)}. ` +
+          `Cuenta el histórico Y los pedidos de la plataforma, y une las distintas ` +
+          `grafías del mismo cliente. Ordenados por valor total (prioridad de contacto).`
+        }
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -284,15 +369,28 @@ export default async function HistoricoPage() {
               <tr className="text-left text-gray-500 border-b border-gray-200">
                 <th className="py-2 pr-4 font-medium">Cliente</th>
                 <th className="py-2 pr-4 font-medium">Última compra</th>
+                <th className="py-2 pr-4 font-medium">Origen</th>
                 <th className="py-2 pr-4 font-medium text-right">Compras</th>
                 <th className="py-2 font-medium text-right">Total gastado</th>
               </tr>
             </thead>
             <tbody>
               {dormant.slice(0, 40).map((c, i) => (
-                <tr key={c.name + i} className="border-b border-gray-100">
-                  <td className="py-2 pr-4 text-gray-800">{c.name}</td>
+                <tr key={(c.customerId ?? c.name) + i} className="border-b border-gray-100">
+                  <td className="py-2 pr-4 text-gray-800">
+                    {c.customerId ? (
+                      <Link href={`/customers/${c.customerId}`} className="text-nouvie-blue hover:underline">
+                        {c.name}
+                      </Link>
+                    ) : (
+                      <span title="Sin vincular a un cliente de la plataforma">{c.name} ⚠️</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-4 text-gray-600">{formatDate(c.lastDate)}</td>
+                  <td className="py-2 pr-4 text-gray-500 text-xs">
+                    {c.lastSource === 'plataforma' ? 'Plataforma' : 'Histórico'}
+                    {c.platformCount > 0 && ` · ${c.platformCount} pedido${c.platformCount === 1 ? '' : 's'}`}
+                  </td>
                   <td className="py-2 pr-4 text-gray-600 text-right tabular-nums">{c.count}</td>
                   <td className="py-2 text-gray-800 text-right font-medium tabular-nums">{formatCOP(c.total)}</td>
                 </tr>
@@ -301,6 +399,15 @@ export default async function HistoricoPage() {
           </table>
           {dormant.length > 40 && (
             <p className="text-xs text-gray-400 mt-2">Mostrando los 40 de mayor valor de {dormant.length}.</p>
+          )}
+          {unlinkedInReport > 0 && (
+            <p className="text-xs text-amber-600 mt-2">
+              ⚠️ {unlinkedInReport} clientes del histórico no están vinculados a la plataforma, así
+              que sus pedidos recientes no se tienen en cuenta.{' '}
+              <Link href="/historico/clientes" className="underline">
+                Revisar
+              </Link>
+            </p>
           )}
         </div>
       </Card>
