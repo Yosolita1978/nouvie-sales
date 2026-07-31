@@ -31,6 +31,11 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
   // as edited, even if it was also created recently.
   const edited = wasEdited(currentCustomer.createdAt, currentCustomer.updatedAt)
   const newClient = !edited && isNew(currentCustomer.createdAt)
+  // The most recent purchase may come from the old sales sheet, not the platform.
+  const fromHistoric = currentCustomer.lastOrder?.source === 'historico'
+  const orderCount = currentCustomer.orderCount ?? 0
+  const historicCount = currentCustomer.historicCount ?? 0
+  const purchaseCount = currentCustomer.purchaseCount ?? orderCount
 
   function handleEditClick(e: React.MouseEvent) {
     e.preventDefault()
@@ -147,26 +152,35 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
             {currentCustomer.lastOrder ? (
               <div className="space-y-1">
                 <p className="text-xs text-gray-500">
-                  Último pedido · {formatDate(currentCustomer.lastOrder.createdAt)}
+                  {fromHistoric ? 'Última compra' : 'Último pedido'} ·{' '}
+                  {formatDate(currentCustomer.lastOrder.createdAt)}
+                  {fromHistoric && (
+                    <span className="ml-1 text-amber-700">· histórico</span>
+                  )}
                 </p>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-nouvie-blue">
                     {formatCOP(currentCustomer.lastOrder.total)}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className={PAYMENT_STATUS_BADGES[currentCustomer.lastOrder.paymentStatus]}>
-                      {PAYMENT_STATUS_LABELS[currentCustomer.lastOrder.paymentStatus]}
-                    </span>
-                    {currentCustomer.orderCount != null && (
+                    {!fromHistoric && (
+                      <span className={PAYMENT_STATUS_BADGES[currentCustomer.lastOrder.paymentStatus]}>
+                        {PAYMENT_STATUS_LABELS[currentCustomer.lastOrder.paymentStatus]}
+                      </span>
+                    )}
+                    {purchaseCount > 0 && (
                       <span className="text-xs text-gray-400">
-                        {currentCustomer.orderCount} pedido{currentCustomer.orderCount !== 1 ? 's' : ''}
+                        {purchaseCount} compra{purchaseCount !== 1 ? 's' : ''}
+                        {historicCount > 0 && orderCount > 0 && (
+                          <> ({orderCount} en plataforma)</>
+                        )}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-400">Sin pedidos</p>
+              <p className="text-xs text-gray-400">Sin compras</p>
             )}
           </div>
         </Link>

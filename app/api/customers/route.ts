@@ -78,22 +78,74 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Flatten each customer's latest order into a single `lastOrder` field
-    // and convert Decimal totals to plain numbers for JSON.
+    // Purchases from the OLD sales sheet count too. A client who only ever
+    // bought before the platform existed must not read as "Sin pedidos".
+    // Several sheet spellings can point at the same customer, so they are
+    // grouped by customerId.
+    const matches = await prisma.historicClientMatch.findMany({
+      where: { confirmed: true, customerId: { not: null } },
+      select: { customerId: true, clientName: true }
+    })
+
+    const historicSales = matches.length === 0 ? [] : await prisma.historicSale.findMany({
+      where: { clientName: { in: matches.map(m => m.clientName) } },
+      select: { clientName: true, saleDate: true, amount: true }
+    })
+
+    const customerIdByClientName = new Map(matches.map(m => [m.clientName, m.customerId as string]))
+
+    interface HistoricSummary { count: number; lastDate: Date; lastTotal: number }
+    const historicByCustomer = new Map<string, HistoricSummary>()
+    for (const sale of historicSales) {
+      const customerId = customerIdByClientName.get(sale.clientName)
+      if (!customerId) continue
+      const current = historicByCustomer.get(customerId)
+      if (!current) {
+        historicByCustomer.set(customerId, {
+          count: 1, lastDate: sale.saleDate, lastTotal: Number(sale.amount)
+        })
+        continue
+      }
+      current.count += 1
+      if (sale.saleDate > current.lastDate) {
+        current.lastDate = sale.saleDate
+        current.lastTotal = Number(sale.amount)
+      }
+    }
+
+    // Flatten each customer's latest purchase into `lastOrder` and convert
+    // Decimal totals to plain numbers for JSON.
     const serializedCustomers = customers.map((customer) => {
       const { orders, _count, ...rest } = customer
       const latest = orders[0]
+      const historic = historicByCustomer.get(customer.id)
+
+      // The most recent purchase wins, whichever source it came from.
+      const useHistoric =
+        historic !== undefined &&
+        (latest === undefined || historic.lastDate > latest.createdAt)
 
       return {
         ...rest,
         orderCount: _count.orders,
-        lastOrder: latest
+        historicCount: historic?.count ?? 0,
+        purchaseCount: _count.orders + (historic?.count ?? 0),
+        lastOrder: useHistoric
           ? {
-              total: Number(latest.total),
-              paymentStatus: latest.paymentStatus,
-              createdAt: latest.createdAt
+              total: historic.lastTotal,
+              // Historic sales have no payment workflow; they were collected.
+              paymentStatus: 'paid',
+              createdAt: historic.lastDate,
+              source: 'historico' as const
             }
-          : null
+          : latest
+            ? {
+                total: Number(latest.total),
+                paymentStatus: latest.paymentStatus,
+                createdAt: latest.createdAt,
+                source: 'plataforma' as const
+              }
+            : null
       }
     })
 

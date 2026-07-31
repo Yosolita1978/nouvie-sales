@@ -193,6 +193,8 @@ export interface CustomerLastOrder {
     total: number
     paymentStatus: string
     createdAt: Date | string
+    /** Which dataset this purchase came from. */
+    source?: 'historico' | 'plataforma'
   }
 
   // What the GET /api/customers endpoint returns for each customer
@@ -212,6 +214,10 @@ export interface CustomerLastOrder {
     updatedAt?: Date | string
     // Order summary — only present on the GET /api/customers list response
     orderCount?: number
+    /** Purchases from the old sales sheet linked to this customer. */
+    historicCount?: number
+    /** orderCount + historicCount. */
+    purchaseCount?: number
     lastOrder?: CustomerLastOrder | null
   }
   
