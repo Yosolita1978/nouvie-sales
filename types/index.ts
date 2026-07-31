@@ -206,6 +206,8 @@ export interface CustomerLastOrder {
     address: string | null
     city: string | null
     active: boolean
+    /** Said SI to notifications in the phone campaign. */
+    acceptsMarketing?: boolean
     createdAt: Date | string
     updatedAt?: Date | string
     // Order summary — only present on the GET /api/customers list response

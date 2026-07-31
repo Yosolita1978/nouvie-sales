@@ -12,6 +12,8 @@ export default function CustomersPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  // Show only the clients who agreed to notifications in the phone campaign.
+  const [onlyMarketing, setOnlyMarketing] = useState(false)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -54,6 +56,11 @@ export default function CustomersPage() {
     fetchCustomers()
   }
 
+  const marketingCount = customers.filter((c) => c.acceptsMarketing).length
+  const visibleCustomers = onlyMarketing
+    ? customers.filter((c) => c.acceptsMarketing)
+    : customers
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -64,7 +71,7 @@ export default function CustomersPage() {
             {loading ? (
               'Cargando...'
             ) : (
-              `${customers.length} cliente${customers.length !== 1 ? 's' : ''} encontrado${customers.length !== 1 ? 's' : ''}`
+              `${visibleCustomers.length} cliente${visibleCustomers.length !== 1 ? 's' : ''} encontrado${visibleCustomers.length !== 1 ? 's' : ''}`
             )}
           </p>
         </div>
@@ -155,20 +162,38 @@ export default function CustomersPage() {
         </div>
       )}
 
+      {/* Notifications filter */}
+      {!loading && !error && marketingCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setOnlyMarketing((v) => !v)}
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition ${
+            onlyMarketing
+              ? 'bg-emerald-600 text-white ring-emerald-600'
+              : 'bg-emerald-50 text-emerald-800 ring-emerald-300 hover:bg-emerald-100'
+          }`}
+        >
+          🔔 {marketingCount} aceptan notificaciones
+          <span className={onlyMarketing ? 'text-emerald-100' : 'text-emerald-600'}>
+            {onlyMarketing ? '· ver todos' : '· ver solo estos'}
+          </span>
+        </button>
+      )}
+
       {/* Customer Grid */}
       {!error && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {loading && <CustomerGridSkeleton count={9} />}
 
           {!loading &&
-            customers.map((customer) => (
+            visibleCustomers.map((customer) => (
               <CustomerCard key={customer.id} customer={customer} />
             ))}
         </div>
       )}
 
       {/* Empty State */}
-      {!loading && !error && customers.length === 0 && (
+      {!loading && !error && visibleCustomers.length === 0 && (
         <div className="text-center py-12">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"

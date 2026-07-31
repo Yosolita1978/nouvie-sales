@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         address: true,
         city: true,
         active: true,
+        acceptsMarketing: true,
         createdAt: true,
         updatedAt: true,
         // Most recent order for this customer (for the card summary)

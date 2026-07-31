@@ -55,6 +55,42 @@ const OVERRIDES: Record<string, string> = {
   // add your corrections here
 }
 
+// -----------------------------------------------------------------------------
+// LINES THE PARSER CANNOT GET RIGHT, keyed by CSV line number.
+//
+// These write BOTH the promo name and its contents ("kit x 5 aseo: 4 azules+1
+// rosado"), so the parser expanded the kit AND counted the contents = double.
+// Others lost a quantity ("Promo 3 amarillo" counted 1). The client confirmed
+// what was really sold in "Arreglos Sistema admin" (jul 2026); we parse that
+// text instead. The original stays in rawProduct, untouched.
+//
+// The number in the comment is the client's own unit count for that sale.
+// -----------------------------------------------------------------------------
+const PRODUCT_TEXT_OVERRIDES: Record<number, string> = {
+  // "kit   +5 (2amarillos 2 azules 1 blanco)" -> contaba 5 amarillos. Son 5 und.
+  78: '2 amarillos 2 azules 1 blanco',
+  // "Promoción 2 amarillos 1 blanco 1 espúmelo pqño" -> el espumero es el regalo.
+  143: '2 amarillos 1 blanco 1 espumero',
+  // "Promo 3 amarillo 1 azul 1 rosado 1 línea men" -> perdía el 3; línea men =
+  // kit revitalizante (shampoo + loción). Son 7 und.
+  145: '3 amarillos 1 azul 1 rosado 1 shampoo revitalizante 1 locion revitalizante',
+  // "3 amarillos + 3 rosados ( 1 kit x 5 + 1 producto)" -> el "kit x 5" ES esos
+  // 6 productos, no 5 adicionales. Son 6 und.
+  171: '3 amarillos 3 rosados',
+  // "kit x 5 aseo: 4 azules+1 rosado" -> el "kit x 5" ES ese contenido. Son 5 und.
+  245: '4 azules 1 rosado',
+  // "Kit prom 1 shampoo melón 1 shampoo kiwi loción kiwi" -> perdía la loción.
+  223: '1 shampoo melon 1 shampoo kiwi 1 locion kiwi',
+  // "Melón 1 masque melón 1detergente" -> "Melón" describe la mascarilla.
+  329: '1 mascarilla melon 1 detergente neutro',
+  // Institucional. "limpiavidrios, acero y sanitizante" es el NOMBRE COMPLETO de
+  // un solo producto (el Limpia Vidrios Institucional Concentrado de nouvie.co),
+  // pero el parser lo partía en las comas y contaba tres. Dejamos "acero" como
+  // único fragmento: la regla guardada lo cuenta como el producto institucional.
+  // Nota: son litros PREPARADOS, no tarros; no se convierte a unidades.
+  206: 'acero + 2 botellas de 250 ml concentrado + 2 litros limpiapisos + 2 litros limpia superficies y pantallas',
+}
+
 // Correct known data-entry typos in the source AMOUNT, keyed by CSV line number.
 // Both had an extra ".000" group ($152.000.000 instead of $152.000).
 const AMOUNT_OVERRIDES: Record<number, number> = {
@@ -192,17 +228,23 @@ function normalizeAmount(raw: string): { value: number; flag: string | null } {
 // Product parsing
 // ---------------------------------------------------------------------------
 
+// The sheet uses the OLD commercial names of the capilar lines. Confirmed by
+// the client (doc "Arreglos Sistema admin", jul 2026):
+//   kiwi, acai          -> Liso y Sedoso
+//   melón, honey melón  -> Reparación Intensa
+//   hombre, men         -> Revitalizante
+// They are aliases, not separate scents: keeping them apart split the same
+// product into two rows in the historic ranking.
 function detectScent(f: string): string {
   if (f.includes('reparacion')) return 'Reparación Intensa'
   if (f.includes('revitaliz')) return 'Revitalizante'
-  if (f.includes('suave') || f.includes('liso')) return 'Suave y Liso'
-  if (f.includes('hombre')) return 'Hombre'
-  if (f.includes('kiwi') && f.includes('acai')) return 'Kiwi & Acai'
-  if (f.includes('kiwi')) return 'Kiwi'
-  if (f.includes('melon')) return 'Melón'
-  if (f.includes('honey')) return 'Honey'
+  if (f.includes('suave') || f.includes('liso') || f.includes('kiwi') || f.includes('acai')) {
+    return 'Liso y Sedoso'
+  }
+  // \bmen\b only — "men" as a substring appears inside unrelated words.
+  if (f.includes('hombre') || /\bmen\b/.test(f)) return 'Revitalizante'
+  if (f.includes('melon') || f.includes('honey')) return 'Reparación Intensa'
   if (f.includes('naranja')) return 'Naranja'
-  if (f.includes('acai')) return 'Acai'
   return ''
 }
 
@@ -266,8 +308,10 @@ function classify(fragment: string): string | null {
   if (f.includes('shampoo') || f.includes('champu')) return withScent('Shampoo', f)
   if (f.includes('mascarilla') || f.includes('masque')) return withScent('Mascarilla', f)
   if (f.includes('locion')) return withScent('Loción', f)
+  // "molding" is the sheet's word for the loción moldeadora — same product,
+  // so it must not become a separate "Moldeador ..." row.
   if (f.includes('molding') || f.includes('moldead') || f.includes('moldeador')) {
-    return withScent('Moldeador', f)
+    return withScent('Loción', f)
   }
   if (f.includes('tratamiento')) return withScent('Tratamiento', f)
   if (f.includes('desinfectante')) return 'Desinfectante Frutas y Verduras'
@@ -291,7 +335,7 @@ function classify(fragment: string): string | null {
  */
 function splitFragments(text: string): string[] {
   return text
-    .replace(/suave y liso/g, 'suaveyliso')
+    .replace(/suave y liso|liso y sedoso/g, 'suaveyliso')
     .replace(/frutas y verduras/g, 'frutasyverduras')
     .replace(/superficies y pantallas/g, 'superficiespantallas')
     .split(/[,+]|\sy\s|\s+(?=\d+\s+(?!ml\b|lt\b|litros?\b|gr\b|gramos?\b|de\b)[a-zñ])/)
@@ -325,7 +369,10 @@ function parseProducts(rawProduct: string): { items: ParsedItem[]; flags: string
   // Clean noise: prices ($ 48.000), promo notes.
   let text = normalize(rawProduct)
     .replace(/\$\s*[\d.,]+/g, ' ')
-    .replace(/\(?\s*promo(?:cion)?\s*\d*\s*\)?/g, ' ')
+    // Strip the word "promo/promoción" only — NOT the number after it. In this
+    // sheet that number is always the quantity ("Promo 3 kits melón" = 3 kits),
+    // and swallowing it silently undercounted ~17 lines.
+    .replace(/\(?\s*promo(?:cion)?\s*\)?/g, ' ')
     .replace(/\bprom\b/g, ' ')
 
   // Normalize kits whose contents are written with ":" / "=" or as a bare color
@@ -454,7 +501,16 @@ async function main() {
       flags.push(parsedAmount.flag)
     }
 
-    const { items, flags: productFlags } = parseProducts(pedido)
+    // Some lines are unparseable shorthand where the promo NAME and its CONTENTS
+    // are both written, so the parser counts both. The client spelled out what
+    // was actually sold; we parse that text instead. rawProduct still stores the
+    // untouched original, so nothing is lost.
+    const pedidoParaParsear = PRODUCT_TEXT_OVERRIDES[rowNumber] ?? pedido
+    if (PRODUCT_TEXT_OVERRIDES[rowNumber] !== undefined) {
+      flags.push(`pedido reinterpretado (confirmado por cliente): "${pedidoParaParsear}"`)
+    }
+
+    const { items, flags: productFlags } = parseProducts(pedidoParaParsear)
     flags.push(...productFlags)
 
     const emailRaw = (row[7] ?? '').trim()
@@ -592,6 +648,7 @@ function printSummary(result: ParsedRow[], skipped: number) {
   let mapped = 0
   let unmapped = 0
   const unmappedCounts = new Map<string, number>()
+  const mappedUnits = new Map<string, number>()
   for (const r of result) {
     for (const it of r.items) {
       if (it.productName.startsWith('UNMAPPED:')) {
@@ -600,9 +657,18 @@ function printSummary(result: ParsedRow[], skipped: number) {
         unmappedCounts.set(key, (unmappedCounts.get(key) ?? 0) + 1)
       } else {
         mapped += 1
+        mappedUnits.set(it.productName, (mappedUnits.get(it.productName) ?? 0) + it.quantity)
       }
     }
   }
+
+  // Full list of canonical names, so duplicated/legacy names are easy to spot.
+  console.log('\n--- Productos reconocidos (unidades) ---')
+  console.log(`  Nombres distintos: ${mappedUnits.size}`)
+  ;[...mappedUnits.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([name, units]) => console.log(`    ${String(units).padStart(4)}  ${name}`))
+
   console.log('\n--- Product items ---')
   console.log(`  Mapped: ${mapped}   Unmapped: ${unmapped}`)
   console.log('  Top unmapped fragments (review these):')

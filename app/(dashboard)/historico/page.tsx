@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { formatCOP } from '@/lib/utils'
+import { MappingIndex, resolveItem } from '@/lib/historic-mapping'
+import { normalizeName } from '@/lib/historic-clients'
 
 // ============================================
 // Reports built from the isolated historic_sales tables (read-only).
@@ -68,17 +70,17 @@ interface ProductsForYear {
   worst: ProductCount[]
 }
 
-function productsByYear(
-  sales: Sale[],
-  resolve: (name: string) => string | null
-): ProductsForYear[] {
+function productsByYear(sales: Sale[], index: MappingIndex): ProductsForYear[] {
   const perYear = new Map<number, Map<string, number>>()
   for (const s of sales) {
     for (const it of s.items) {
-      const name = resolve(it.productName)
-      if (name === null) continue // still unclassified
+      // One item can expand into several products (a promo box / kit).
+      const { units } = resolveItem(it, s.rowNumber, index)
+      if (units.length === 0) continue // ignored, or still unclassified
       const yearMap = perYear.get(s.year) ?? new Map<string, number>()
-      yearMap.set(name, (yearMap.get(name) ?? 0) + it.quantity)
+      for (const u of units) {
+        yearMap.set(u.productName, (yearMap.get(u.productName) ?? 0) + u.quantity)
+      }
       perYear.set(s.year, yearMap)
     }
   }
@@ -157,19 +159,20 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 // --- Page --------------------------------------------------------------------
 
 export default async function HistoricoPage() {
-  const [sales, mappingRows] = await Promise.all([
+  const [sales, mappingRows, clientMatches] = await Promise.all([
     prisma.historicSale.findMany({ include: { items: true } }),
-    prisma.historicProductMapping.findMany(),
+    prisma.historicProductMapping.findMany({ include: { components: true } }),
+    prisma.historicClientMatch.findMany({ select: { clientKey: true, confirmed: true } }),
   ])
 
-  const mapping = new Map(mappingRows.map((m) => [m.unmappedName, m.productName]))
-  const resolveProduct = (name: string): string | null => {
-    if (!name.startsWith('UNMAPPED:')) return name
-    return mapping.get(name) ?? null
-  }
+  const index = new MappingIndex(mappingRows)
+
+  // Client-matching coverage, for the link to the review screen.
+  const totalClients = new Set(sales.map((s) => normalizeName(s.clientName))).size
+  const matchedClients = clientMatches.filter((m) => m.confirmed).length
 
   const summaries = yearSummaries(sales)
-  const products = productsByYear(sales, resolveProduct)
+  const products = productsByYear(sales, index)
   const clientsByYear = topClientsByYear(sales)
   const histories = clientHistories(sales)
 
@@ -193,8 +196,7 @@ export default async function HistoricoPage() {
   const unmappedItems = sales.reduce(
     (n, s) =>
       n +
-      s.items.filter((i) => i.productName.startsWith('UNMAPPED:') && !mapping.has(i.productName))
-        .length,
+      s.items.filter((i) => resolveItem(i, s.rowNumber, index).status === 'sin-clasificar').length,
     0
   )
 
@@ -363,6 +365,13 @@ export default async function HistoricoPage() {
         clasificar no aparecen en el ranking de productos.{' '}
         <Link href="/historico/mapeo" className="text-nouvie-blue hover:underline">
           Gestionar sin clasificar →
+        </Link>
+      </p>
+
+      <p className="text-xs text-gray-400">
+        Clientes: {matchedClients} de {totalClients} vinculados con la plataforma.{' '}
+        <Link href="/historico/clientes" className="text-nouvie-blue hover:underline">
+          Revisar clientes →
         </Link>
       </p>
     </div>

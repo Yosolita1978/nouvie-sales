@@ -4,6 +4,8 @@ import { useState } from 'react'
 
 interface Row {
   unmappedName: string
+  /** The CSV line this decision applies to. */
+  rowNumber: number
   count: number
   quantity: number
   current: string
@@ -13,24 +15,40 @@ interface Row {
 
 type Status = 'idle' | 'saving' | 'saved' | 'error'
 
+/** Rows are keyed by text + line, because the same word can differ per order. */
+function rowKey(r: Row): string {
+  return `${r.unmappedName} ${r.rowNumber}`
+}
+
 export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptions: string[] }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(rows.map((r) => [r.unmappedName, r.current]))
+    Object.fromEntries(rows.map((r) => [rowKey(r), r.current]))
   )
   const [status, setStatus] = useState<Record<string, Status>>({})
 
-  async function save(unmappedName: string) {
-    setStatus((s) => ({ ...s, [unmappedName]: 'saving' }))
+  /**
+   * Save one rule. `ignored` marks the text as a promo name / noise; otherwise
+   * the typed product is sent as a single component (an empty one deletes it).
+   */
+  async function save(row: Row, ignored = false) {
+    const key = rowKey(row)
+    setStatus((s) => ({ ...s, [key]: 'saving' }))
+    const productName = (values[key] ?? '').trim()
     try {
       const res = await fetch('/api/historico/mapping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unmappedName, productName: values[unmappedName] ?? '' }),
+        body: JSON.stringify({
+          unmappedName: row.unmappedName,
+          rowNumber: row.rowNumber,
+          ignored,
+          components: ignored || productName === '' ? [] : [{ productName, quantity: 1 }],
+        }),
       })
       if (!res.ok) throw new Error()
-      setStatus((s) => ({ ...s, [unmappedName]: 'saved' }))
+      setStatus((s) => ({ ...s, [key]: 'saved' }))
     } catch {
-      setStatus((s) => ({ ...s, [unmappedName]: 'error' }))
+      setStatus((s) => ({ ...s, [key]: 'error' }))
     }
   }
 
@@ -59,9 +77,10 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
         </thead>
         <tbody>
           {rows.map((r) => {
-            const st = status[r.unmappedName] ?? 'idle'
+            const key = rowKey(r)
+            const st = status[key] ?? 'idle'
             return (
-              <tr key={r.unmappedName} className="border-b border-gray-100 align-top">
+              <tr key={key} className="border-b border-gray-100 align-top">
                 <td className="py-3 pr-4 text-gray-800 font-medium">
                   {r.unmappedName.replace('UNMAPPED: ', '')}
                 </td>
@@ -74,11 +93,11 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
                 <td className="py-3 pr-4">
                   <input
                     list="product-options"
-                    value={values[r.unmappedName] ?? ''}
+                    value={values[key] ?? ''}
                     onChange={(e) => {
                       const v = e.target.value
-                      setValues((s) => ({ ...s, [r.unmappedName]: v }))
-                      setStatus((s) => ({ ...s, [r.unmappedName]: 'idle' }))
+                      setValues((s) => ({ ...s, [key]: v }))
+                      setStatus((s) => ({ ...s, [key]: 'idle' }))
                     }}
                     placeholder="Escribe o elige un producto…"
                     className="w-full max-w-xs border border-gray-300 rounded px-2 py-1 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-nouvie-blue"
@@ -86,11 +105,19 @@ export function MapeoTable({ rows, productOptions }: { rows: Row[]; productOptio
                 </td>
                 <td className="py-3 whitespace-nowrap">
                   <button
-                    onClick={() => save(r.unmappedName)}
+                    onClick={() => save(r)}
                     disabled={st === 'saving'}
                     className="text-sm px-3 py-1 rounded bg-nouvie-blue text-white disabled:opacity-50 hover:opacity-90"
                   >
                     {st === 'saving' ? 'Guardando…' : 'Guardar'}
+                  </button>
+                  <button
+                    onClick={() => save(r, true)}
+                    disabled={st === 'saving'}
+                    className="ml-2 text-sm px-3 py-1 rounded border border-gray-300 text-gray-600 disabled:opacity-50 hover:bg-gray-50"
+                    title="Marcar como texto que no es un producto (no se cuenta)"
+                  >
+                    No es producto
                   </button>
                   {st === 'saved' && <span className="ml-2 text-green-600">✓</span>}
                   {st === 'error' && <span className="ml-2 text-red-600">Error</span>}

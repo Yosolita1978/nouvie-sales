@@ -65,6 +65,14 @@ export function CustomerCard({ customer, onCustomerUpdated }: CustomerCardProps)
             </span>
             {edited && <span className="badge-warning">Editado</span>}
             {newClient && <span className="badge-success">Nuevo</span>}
+            {currentCustomer.acceptsMarketing && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-300"
+                title="Aceptó recibir notificaciones en la campaña telefónica"
+              >
+                🔔 Notificaciones
+              </span>
+            )}
           </div>
 
           {/* Contact Info */}
