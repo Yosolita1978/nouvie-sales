@@ -36,6 +36,12 @@ function normName(s: string): string {
     .trim()
 }
 
+/** Whole months between two dates — how long a client has been gone. */
+function monthsBetween(from: Date, to: Date): number {
+  const months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+  return to.getDate() < from.getDate() ? Math.max(0, months - 1) : Math.max(0, months)
+}
+
 function formatDate(d: Date): string {
   return new Intl.DateTimeFormat('es-CO', { year: 'numeric', month: 'short', day: 'numeric' }).format(d)
 }
@@ -46,16 +52,47 @@ interface YearSummary {
   year: number
   count: number
   total: number
+  historicCount: number
+  historicTotal: number
+  platformCount: number
+  platformTotal: number
 }
 
-function yearSummaries(sales: Sale[]): YearSummary[] {
+/**
+ * Sales per year from BOTH sources.
+ *
+ * 2026 is the year that matters here: the old sheet only holds the sales made
+ * before the platform took over, so counting it alone showed $7M when the real
+ * figure is $17M. Historic sales and platform orders are separate records, so
+ * adding them cannot double count.
+ */
+function yearSummaries(sales: Sale[], orders: OrderLite[]): YearSummary[] {
   const map = new Map<number, YearSummary>()
+  const blank = (year: number): YearSummary => ({
+    year, count: 0, total: 0,
+    historicCount: 0, historicTotal: 0, platformCount: 0, platformTotal: 0,
+  })
+
   for (const s of sales) {
-    const y = map.get(s.year) ?? { year: s.year, count: 0, total: 0 }
-    y.count += 1
-    y.total += amountOf(s)
+    const y = map.get(s.year) ?? blank(s.year)
+    y.historicCount += 1
+    y.historicTotal += amountOf(s)
     map.set(s.year, y)
   }
+
+  for (const o of orders) {
+    const year = o.orderDate.getFullYear()
+    const y = map.get(year) ?? blank(year)
+    y.platformCount += 1
+    y.platformTotal += o.total
+    map.set(year, y)
+  }
+
+  for (const y of map.values()) {
+    y.count = y.historicCount + y.platformCount
+    y.total = y.historicTotal + y.platformTotal
+  }
+
   return [...map.values()].sort((a, b) => a.year - b.year)
 }
 
@@ -251,7 +288,7 @@ export default async function HistoricoPage() {
   const totalClients = new Set(sales.map((s) => normalizeName(s.clientName))).size
   const matchedClients = clientMatches.filter((m) => m.confirmed).length
 
-  const summaries = yearSummaries(sales)
+  const summaries = yearSummaries(sales, orders.map((o) => ({ customerId: o.customerId, total: Number(o.total), orderDate: o.orderDate })))
   const products = productsByYear(sales, index)
   const clientsByYear = topClientsByYear(sales)
   const histories = clientHistories(sales, matchByClientKey, ordersByCustomer)
@@ -261,9 +298,12 @@ export default async function HistoricoPage() {
   const cutoff = new Date(now)
   cutoff.setMonth(cutoff.getMonth() - DORMANT_MONTHS)
 
+  // Oldest first: the person who has been gone longest is the most urgent to
+  // recover, and is also the one most likely to be forgotten. Ties broken by
+  // value, so within the same date the bigger client comes first.
   const dormant = histories
     .filter((c) => c.lastDate < cutoff)
-    .sort((a, b) => b.total - a.total)
+    .sort((a, b) => a.lastDate.getTime() - b.lastDate.getTime() || b.total - a.total)
 
   const oneTime = histories.filter((c) => c.count === 1).sort((a, b) => b.total - a.total)
 
@@ -286,19 +326,35 @@ export default async function HistoricoPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Histórico de ventas</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Análisis del archivo de ventas antiguo ({sales.length} ventas, {summaries[0]?.year}–
-          {summaries[summaries.length - 1]?.year}). Datos aislados: no afecta clientes ni pedidos actuales.
+          {sales.length} ventas del archivo antiguo y {orders.length} pedidos de la plataforma,{' '}
+          {summaries[0]?.year}–{summaries[summaries.length - 1]?.year}. El archivo antiguo sigue
+          aislado: nunca se escribe sobre clientes ni pedidos actuales.
         </p>
       </div>
 
       {/* Resumen por año */}
-      <Card title="Resumen por año">
+      <Card
+        title="Resumen por año"
+        subtitle="Suma el archivo antiguo y los pedidos de la plataforma."
+      >
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {summaries.map((y) => (
             <div key={y.year} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
               <p className="text-2xl font-bold text-gray-900">{y.year}</p>
               <p className="text-sm text-gray-600 mt-1">{y.count} ventas</p>
               <p className="text-sm font-medium text-gray-800 mt-1">{formatCOP(y.total)}</p>
+
+              {/* Only worth breaking down when the year really has both. */}
+              {y.historicCount > 0 && y.platformCount > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-200 space-y-0.5">
+                  <p className="text-xs text-gray-500">
+                    Histórico: {y.historicCount} · {formatCOP(y.historicTotal)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Plataforma: {y.platformCount} · {formatCOP(y.platformTotal)}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -360,23 +416,27 @@ export default async function HistoricoPage() {
         subtitle={
           `${dormant.length} clientes sin comprar desde antes de ${formatDate(cutoff)}. ` +
           `Cuenta el histórico Y los pedidos de la plataforma, y une las distintas ` +
-          `grafías del mismo cliente. Ordenados por valor total (prioridad de contacto).`
+          `grafías del mismo cliente. Del más antiguo al más reciente: arriba está ` +
+          `quien lleva más tiempo sin volver.`
         }
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
+                <th className="py-2 pr-4 font-medium">#</th>
                 <th className="py-2 pr-4 font-medium">Cliente</th>
                 <th className="py-2 pr-4 font-medium">Última compra</th>
+                <th className="py-2 pr-4 font-medium">Sin comprar</th>
                 <th className="py-2 pr-4 font-medium">Origen</th>
                 <th className="py-2 pr-4 font-medium text-right">Compras</th>
                 <th className="py-2 font-medium text-right">Total gastado</th>
               </tr>
             </thead>
             <tbody>
-              {dormant.slice(0, 40).map((c, i) => (
+              {dormant.map((c, i) => (
                 <tr key={(c.customerId ?? c.name) + i} className="border-b border-gray-100">
+                  <td className="py-2 pr-4 text-gray-400 tabular-nums">{i + 1}</td>
                   <td className="py-2 pr-4 text-gray-800">
                     {c.customerId ? (
                       <Link href={`/customers/${c.customerId}`} className="text-nouvie-blue hover:underline">
@@ -386,7 +446,10 @@ export default async function HistoricoPage() {
                       <span title="Sin vincular a un cliente de la plataforma">{c.name} ⚠️</span>
                     )}
                   </td>
-                  <td className="py-2 pr-4 text-gray-600">{formatDate(c.lastDate)}</td>
+                  <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">{formatDate(c.lastDate)}</td>
+                  <td className="py-2 pr-4 text-gray-600 whitespace-nowrap">
+                    {monthsBetween(c.lastDate, now)} meses
+                  </td>
                   <td className="py-2 pr-4 text-gray-500 text-xs">
                     {c.lastSource === 'plataforma' ? 'Plataforma' : 'Histórico'}
                     {c.platformCount > 0 && ` · ${c.platformCount} pedido${c.platformCount === 1 ? '' : 's'}`}
@@ -397,9 +460,6 @@ export default async function HistoricoPage() {
               ))}
             </tbody>
           </table>
-          {dormant.length > 40 && (
-            <p className="text-xs text-gray-400 mt-2">Mostrando los 40 de mayor valor de {dormant.length}.</p>
-          )}
           {unlinkedInReport > 0 && (
             <p className="text-xs text-amber-600 mt-2">
               ⚠️ {unlinkedInReport} clientes del histórico no están vinculados a la plataforma, así
